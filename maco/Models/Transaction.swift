@@ -88,5 +88,26 @@ struct TransactionResponse: Codable {
         case categoryId = "category_id"
         case recurringScheduleId = "recurring_schedule_id"
     }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Handle id as either Int or String
+        if let intId = try? container.decode(Int.self, forKey: .id) {
+            id = String(intId)
+        } else {
+            id = try container.decode(String.self, forKey: .id)
+        }
+        
+        amount = try container.decode(String.self, forKey: .amount)
+        
+        // Handle missing type field - default to "expense" if not present
+        type = (try? container.decode(String.self, forKey: .type)) ?? "expense"
+        
+        dueDate = try container.decode(String.self, forKey: .dueDate)
+        description = try container.decode(String.self, forKey: .description)
+        categoryId = try container.decodeIfPresent(String.self, forKey: .categoryId)
+        recurringScheduleId = try container.decodeIfPresent(String.self, forKey: .recurringScheduleId)
+    }
 }
 

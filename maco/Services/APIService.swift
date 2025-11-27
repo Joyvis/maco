@@ -15,18 +15,40 @@ enum HTTPMethod: String {
     case delete = "DELETE"
 }
 
-enum APIError: Error {
+enum APIError: LocalizedError {
     case invalidURL
     case invalidResponse
     case httpError(statusCode: Int)
-    case decodingError(Error)
+    case decodingError(Error, responseBody: String?)
     case encodingError(Error)
+    case emptyResponse(statusCode: Int)
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "Invalid URL"
+        case .invalidResponse:
+            return "Invalid HTTP response"
+        case .httpError(let statusCode):
+            return "HTTP error with status code: \(statusCode)"
+        case .decodingError(let error, let responseBody):
+            var message = "Failed to decode response: \(error.localizedDescription)"
+            if let body = responseBody, !body.isEmpty {
+                message += "\n\nResponse body:\n\(body)"
+            }
+            return message
+        case .encodingError(let error):
+            return "Failed to encode request: \(error.localizedDescription)"
+        case .emptyResponse(let statusCode):
+            return "Received empty response body with status code: \(statusCode)"
+        }
+    }
 }
 
 class APIService {
     static let shared = APIService()
     
-    private let baseURL = "http://localhost:3000/api/v1"
+    private let baseURL = "http://localhost:3000/api/v0"
     
     // TODO: Add Bearer token authentication
     // private var authToken: String?
@@ -74,12 +96,21 @@ class APIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
         
+        // Handle empty response body
+        guard !data.isEmpty else {
+            throw APIError.emptyResponse(statusCode: httpResponse.statusCode)
+        }
+        
+        // Capture response body as string for error messages
+        let responseBodyString = String(data: data, encoding: .utf8)
+        
         do {
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            // Don't use convertFromSnakeCase since models have explicit CodingKeys
             return try decoder.decode(U.self, from: data)
         } catch {
-            throw APIError.decodingError(error)
+            // Include response body in error for debugging
+            throw APIError.decodingError(error, responseBody: responseBodyString)
         }
     }
     
@@ -112,12 +143,21 @@ class APIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
         
+        // Handle empty response body
+        guard !data.isEmpty else {
+            throw APIError.emptyResponse(statusCode: httpResponse.statusCode)
+        }
+        
+        // Capture response body as string for error messages
+        let responseBodyString = String(data: data, encoding: .utf8)
+        
         do {
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            // Don't use convertFromSnakeCase since models have explicit CodingKeys
             return try decoder.decode(U.self, from: data)
         } catch {
-            throw APIError.decodingError(error)
+            // Include response body in error for debugging
+            throw APIError.decodingError(error, responseBody: responseBodyString)
         }
     }
     

@@ -33,22 +33,22 @@ class TransactionService {
         )
         
         // TODO: Uncomment when API is ready
-        // return try await APIService.shared.post(
-        //     endpoint: "/transactions",
-        //     body: request,
-        //     responseType: TransactionResponse.self
-        // )
+         return try await APIService.shared.post(
+             endpoint: "/transactions",
+             body: request,
+             responseType: TransactionResponse.self
+         )
         
         // Mock response for now
-        return TransactionResponse(
-            id: UUID().uuidString,
-            amount: amount,
-            type: type.rawValue,
-            dueDate: dateFormatter.string(from: dueDate),
-            description: description,
-            categoryId: categoryId,
-            recurringScheduleId: nil
-        )
+//        return TransactionResponse(
+//            id: UUID().uuidString,
+//            amount: amount,
+//            type: type.rawValue,
+//            dueDate: dateFormatter.string(from: dueDate),
+//            description: description,
+//            categoryId: categoryId,
+//            recurringScheduleId: nil
+//        )
     }
     
     func fetchTransactions() async throws -> [TransactionResponse] {
