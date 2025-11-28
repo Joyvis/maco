@@ -40,6 +40,34 @@ class TransactionService {
         )
     }
     
+    func updateTransaction(
+        id: String,
+        amount: String,
+        type: TransactionType,
+        dueDate: Date,
+        description: String,
+        categoryId: String?
+    ) async throws -> TransactionResponse {
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        let request = TransactionRequest(
+            transaction: TransactionRequest.TransactionAttributes(
+                amount: amount,
+                type: type.rawValue,
+                dueDate: dateFormatter.string(from: dueDate),
+                description: description,
+                categoryId: categoryId
+            )
+        )
+        
+        return try await APIService.shared.patch(
+            endpoint: "/transactions/\(id)",
+            body: request,
+            responseType: TransactionResponse.self
+        )
+    }
+    
     func fetchTransactions() async throws -> [TransactionResponse] {
         return try await APIService.shared.get(
             endpoint: "/transactions",

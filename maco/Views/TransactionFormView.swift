@@ -12,6 +12,8 @@ struct TransactionFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     
+    let transaction: Transaction?
+    
     @State private var amount: String = ""
     @State private var selectedType: TransactionType = .expense
     @State private var dueDate: Date = Date()
@@ -25,6 +27,10 @@ struct TransactionFormView: View {
     @State private var isCreatingCategory: Bool = false
     @State private var isLoading: Bool = false
     @State private var errorMessage: String? = nil
+    
+    private var isEditMode: Bool {
+        transaction != nil
+    }
     
     var body: some View {
         NavigationView {
@@ -84,7 +90,7 @@ struct TransactionFormView: View {
                     }
                 }
             }
-            .navigationTitle("New Transaction")
+            .navigationTitle(isEditMode ? "Edit Transaction" : "New Transaction")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -133,8 +139,35 @@ struct TransactionFormView: View {
         do {
             availableCategories = try await CategoryService.shared.fetchCategories()
             filteredCategories = availableCategories
+            // If we have a transaction, prefill after categories are loaded
+            if let transaction = transaction {
+                prefillForm(with: transaction)
+            }
         } catch {
             errorMessage = "Failed to load categories: \(error.localizedDescription)"
+        }
+    }
+    
+    private func prefillForm(with transaction: Transaction) {
+        // Extract numeric value from amount string (remove currency formatting)
+        if let amountValue = Double(transaction.amount) {
+            amount = String(format: "%.2f", amountValue)
+        } else {
+            amount = transaction.amount
+        }
+        
+        selectedType = transaction.transactionType
+        dueDate = transaction.dueDate
+        description = transaction.transactionDescription
+        
+        // Look up category name from available categories
+        if let categoryId = transaction.categoryId,
+           let category = availableCategories.first(where: { $0.id == categoryId }) {
+            selectedCategoryId = category.id
+            categoryName = category.name
+        } else {
+            selectedCategoryId = transaction.categoryId
+            categoryName = ""
         }
     }
     
@@ -181,26 +214,50 @@ struct TransactionFormView: View {
         let formattedAmount = formatCurrency(amount)
         
         do {
-            // Create transaction via API
-            let response = try await TransactionService.shared.createTransaction(
-                amount: formattedAmount,
-                type: selectedType,
-                dueDate: dueDate,
-                description: description,
-                categoryId: selectedCategoryId
-            )
+            let response: TransactionResponse
             
-            // Save to SwiftData
-            let transaction = Transaction(
-                id: response.id,
-                amount: response.amount,
-                type: TransactionType(rawValue: response.type) ?? .expense,
-                dueDate: parseDate(response.dueDate) ?? dueDate,
-                transactionDescription: response.description,
-                categoryId: response.categoryId,
-                recurringScheduleId: response.recurringScheduleId
-            )
-            modelContext.insert(transaction)
+            if let existingTransaction = transaction, let transactionId = existingTransaction.id {
+                // Update existing transaction
+                response = try await TransactionService.shared.updateTransaction(
+                    id: transactionId,
+                    amount: formattedAmount,
+                    type: selectedType,
+                    dueDate: dueDate,
+                    description: description,
+                    categoryId: selectedCategoryId
+                )
+                
+                // Update SwiftData model
+                existingTransaction.amount = response.amount
+                existingTransaction.transactionType = TransactionType(rawValue: response.type) ?? .expense
+                existingTransaction.dueDate = parseDate(response.dueDate) ?? dueDate
+                existingTransaction.transactionDescription = response.description
+                existingTransaction.categoryId = response.categoryId
+                existingTransaction.recurringScheduleId = response.recurringScheduleId
+                
+                try modelContext.save()
+            } else {
+                // Create new transaction
+                response = try await TransactionService.shared.createTransaction(
+                    amount: formattedAmount,
+                    type: selectedType,
+                    dueDate: dueDate,
+                    description: description,
+                    categoryId: selectedCategoryId
+                )
+                
+                // Save to SwiftData
+                let newTransaction = Transaction(
+                    id: response.id,
+                    amount: response.amount,
+                    type: TransactionType(rawValue: response.type) ?? .expense,
+                    dueDate: parseDate(response.dueDate) ?? dueDate,
+                    transactionDescription: response.description,
+                    categoryId: response.categoryId,
+                    recurringScheduleId: response.recurringScheduleId
+                )
+                modelContext.insert(newTransaction)
+            }
             
             dismiss()
         } catch {
@@ -291,7 +348,7 @@ struct CategoryAutocompleteView: View {
 }
 
 #Preview {
-    TransactionFormView()
+    TransactionFormView(transaction: nil)
         .modelContainer(for: [Transaction.self, Category.self], inMemory: true)
 }
 

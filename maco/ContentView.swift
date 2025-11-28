@@ -18,29 +18,35 @@ struct ContentView: View {
     @State private var errorMessage: String? = nil
     @State private var transactionToDelete: Transaction? = nil
     @State private var showDeleteAlert: Bool = false
+    @State private var transactionToEdit: Transaction? = nil
 
     var body: some View {
         NavigationStack {
             List {
                 ForEach(transactions) { transaction in
-                    TransactionRowView(transaction: transaction, categories: categories)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                transactionToDelete = transaction
-                                showDeleteAlert = true
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                    TransactionRowView(
+                        transaction: transaction,
+                        categories: categories,
+                        onTap: {
+                            transactionToEdit = transaction
+                            showTransactionForm = true
                         }
+                    )
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            transactionToDelete = transaction
+                            showDeleteAlert = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
                 }
             }
             .navigationTitle("Transactions")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
                 ToolbarItem {
                     Button(action: {
+                        transactionToEdit = nil
                         showTransactionForm = true
                     }) {
                         Label("Add Transaction", systemImage: "plus")
@@ -48,7 +54,12 @@ struct ContentView: View {
                 }
             }
             .sheet(isPresented: $showTransactionForm) {
-                TransactionFormView()
+                TransactionFormView(transaction: transactionToEdit)
+            }
+            .onChange(of: showTransactionForm) { oldValue, newValue in
+                if !newValue {
+                    transactionToEdit = nil
+                }
             }
             .alert("Delete Transaction", isPresented: $showDeleteAlert) {
                 Button("Cancel", role: .cancel) {
@@ -109,6 +120,7 @@ struct ContentView: View {
 struct TransactionRowView: View {
     let transaction: Transaction
     let categories: [Category]
+    let onTap: () -> Void
     
     private var categoryName: String {
         guard let categoryId = transaction.categoryId else {
@@ -158,6 +170,10 @@ struct TransactionRowView: View {
             }
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onTap()
+        }
     }
 }
 
