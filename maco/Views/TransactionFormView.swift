@@ -238,7 +238,7 @@ struct TransactionFormView: View {
                 id: newCategory.id,
                 name: newCategory.name,
                 parentId: newCategory.parentId,
-                isPredefined: newCategory.isPredefined,
+                isPredefined: newCategory.isPredefined ?? false,
                 userId: newCategory.userId
             )
             modelContext.insert(category)

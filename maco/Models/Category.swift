@@ -49,8 +49,10 @@ struct CategoryResponse: Codable {
     let id: String
     let name: String
     let parentId: String?
-    let isPredefined: Bool
+    let isPredefined: Bool?
     let userId: String?
+    let createdAt: String?
+    let updatedAt: String?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -58,6 +60,26 @@ struct CategoryResponse: Codable {
         case parentId = "parent_id"
         case isPredefined = "is_predefined"
         case userId = "user_id"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Handle id as either Int or String
+        if let intId = try? container.decode(Int.self, forKey: .id) {
+            id = String(intId)
+        } else {
+            id = try container.decode(String.self, forKey: .id)
+        }
+        
+        name = try container.decode(String.self, forKey: .name)
+        parentId = try container.decodeIfPresent(String.self, forKey: .parentId)
+        isPredefined = try container.decodeIfPresent(Bool.self, forKey: .isPredefined)
+        userId = try container.decodeIfPresent(String.self, forKey: .userId)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
     }
 }
 

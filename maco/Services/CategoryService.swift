@@ -57,20 +57,10 @@ class CategoryService {
             )
         )
         
-        // TODO: Uncomment when API is ready
-        // return try await APIService.shared.post(
-        //     endpoint: "/transaction_categories",
-        //     body: request,
-        //     responseType: CategoryResponse.self
-        // )
-        
-        // Mock response for now
-        return CategoryResponse(
-            id: UUID().uuidString,
-            name: name,
-            parentId: parentId,
-            isPredefined: false,
-            userId: nil
+        return try await APIService.shared.post(
+            endpoint: "/transaction_categories",
+            body: request,
+            responseType: CategoryResponse.self
         )
     }
 }
