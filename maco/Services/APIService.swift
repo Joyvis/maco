@@ -118,9 +118,22 @@ class APIService {
     func request<U: Codable>(
         endpoint: String,
         method: HTTPMethod,
+        queryParameters: [String: String]? = nil,
         responseType: U.Type
     ) async throws -> U {
-        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+        // Build URL with query parameters
+        guard var urlComponents = URLComponents(string: "\(baseURL)\(endpoint)") else {
+            throw APIError.invalidURL
+        }
+        
+        // Add query parameters if provided
+        if let queryParameters = queryParameters, !queryParameters.isEmpty {
+            urlComponents.queryItems = queryParameters.map { key, value in
+                URLQueryItem(name: key, value: value)
+            }
+        }
+        
+        guard let url = urlComponents.url else {
             throw APIError.invalidURL
         }
         
@@ -165,6 +178,10 @@ class APIService {
     
     func get<U: Codable>(endpoint: String, responseType: U.Type) async throws -> U {
         return try await request(endpoint: endpoint, method: .get, responseType: responseType)
+    }
+    
+    func get<U: Codable>(endpoint: String, queryParameters: [String: String]?, responseType: U.Type) async throws -> U {
+        return try await request(endpoint: endpoint, method: .get, queryParameters: queryParameters, responseType: responseType)
     }
     
     func post<T: Codable, U: Codable>(endpoint: String, body: T, responseType: U.Type) async throws -> U {

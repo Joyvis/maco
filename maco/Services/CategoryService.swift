@@ -28,22 +28,25 @@ class CategoryService {
     ]
     
     func fetchCategories() async throws -> [CategoryResponse] {
-        // TODO: Implement API call when endpoint is available
-        // return try await APIService.shared.get(
-        //     endpoint: "/transaction_categories",
-        //     responseType: [CategoryResponse].self
-        // )
+        return try await APIService.shared.get(
+            endpoint: "/transaction_categories",
+            responseType: [CategoryResponse].self
+        )
+    }
+    
+    func fetchCategories(filterByName: String?) async throws -> [CategoryResponse] {
+        var queryParameters: [String: String]? = nil
         
-        // Return mocked data for now
-        return mockedCategories.map { name in
-            CategoryResponse(
-                id: UUID().uuidString,
-                name: name,
-                parentId: nil,
-                isPredefined: true,
-                userId: nil
-            )
+        // Only add name filter if provided and has at least 3 characters
+        if let filterName = filterByName, filterName.count >= 3 {
+            queryParameters = ["name": filterName]
         }
+        
+        return try await APIService.shared.get(
+            endpoint: "/transaction_categories",
+            queryParameters: queryParameters,
+            responseType: [CategoryResponse].self
+        )
     }
     
     func createCategory(name: String, parentId: String? = nil) async throws -> CategoryResponse {

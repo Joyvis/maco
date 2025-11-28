@@ -26,7 +26,9 @@ struct TransactionFormView: View {
     @State private var showCategorySuggestions: Bool = false
     @State private var isCreatingCategory: Bool = false
     @State private var isLoading: Bool = false
+    @State private var isLoadingCategories: Bool = false
     @State private var errorMessage: String? = nil
+    @State private var searchTask: Task<Void, Never>? = nil
     
     private var isEditMode: Bool {
         transaction != nil
@@ -69,6 +71,7 @@ struct TransactionFormView: View {
                         filteredCategories: $filteredCategories,
                         showSuggestions: $showCategorySuggestions,
                         isCreatingCategory: $isCreatingCategory,
+                        isLoadingCategories: isLoadingCategories,
                         onCategorySelected: { category in
                             selectedCategoryId = category.id
                             categoryName = category.name
@@ -113,6 +116,10 @@ struct TransactionFormView: View {
             .onChange(of: categoryName) { oldValue, newValue in
                 filterCategories(query: newValue)
             }
+            .onDisappear {
+                // Cancel any pending search when view disappears
+                searchTask?.cancel()
+            }
         }
     }
     
@@ -124,14 +131,52 @@ struct TransactionFormView: View {
     }
     
     private func filterCategories(query: String) {
-        if query.isEmpty {
-            filteredCategories = availableCategories
+        // Cancel previous search task
+        searchTask?.cancel()
+        
+        // Clear suggestions if query is empty or less than 3 characters
+        if query.isEmpty || query.count < 3 {
+            filteredCategories = []
             showCategorySuggestions = false
-        } else {
-            filteredCategories = availableCategories.filter { category in
-                category.name.localizedCaseInsensitiveContains(query)
+            return
+        }
+        
+        // Show suggestions UI
+        showCategorySuggestions = true
+        
+        // Create new search task with debouncing
+        searchTask = Task {
+            // Wait 500ms before making API call (debouncing)
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            
+            // Check if task was cancelled
+            guard !Task.isCancelled else { return }
+            
+            // Make API call
+            await performCategorySearch(query: query)
+        }
+    }
+    
+    private func performCategorySearch(query: String) async {
+        isLoadingCategories = true
+        defer { isLoadingCategories = false }
+        
+        do {
+            let categories = try await CategoryService.shared.fetchCategories(filterByName: query)
+            
+            // Check if task was cancelled before updating state
+            guard !Task.isCancelled else { return }
+            
+            filteredCategories = categories
+        } catch {
+            // Check if task was cancelled before showing error
+            guard !Task.isCancelled else { return }
+            
+            // Only show error if it's not a cancellation
+            if !(error is CancellationError) {
+                errorMessage = "Failed to search categories: \(error.localizedDescription)"
             }
-            showCategorySuggestions = !filteredCategories.isEmpty || !query.isEmpty
+            filteredCategories = []
         }
     }
     
@@ -185,6 +230,7 @@ struct TransactionFormView: View {
             
             // Add to local list
             availableCategories.append(newCategory)
+            filteredCategories.append(newCategory)
             selectedCategoryId = newCategory.id
             
             // Save to SwiftData
@@ -288,6 +334,7 @@ struct CategoryAutocompleteView: View {
     @Binding var filteredCategories: [CategoryResponse]
     @Binding var showSuggestions: Bool
     @Binding var isCreatingCategory: Bool
+    let isLoadingCategories: Bool
     let onCategorySelected: (CategoryResponse) -> Void
     let onCreateCategory: () -> Void
     
@@ -300,23 +347,42 @@ struct CategoryAutocompleteView: View {
             
             if showSuggestions && !categoryName.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    // Show filtered suggestions
-                    ForEach(filteredCategories, id: \.id) { category in
-                        Button(action: {
-                            onCategorySelected(category)
-                        }) {
-                            HStack {
-                                Text(category.name)
-                                Spacer()
-                            }
+                    if isLoadingCategories {
+                        HStack {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("Searching...")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 8)
+                    } else if filteredCategories.isEmpty {
+                        Text("No categories found")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                             .padding(.vertical, 4)
                             .padding(.horizontal, 8)
+                    } else {
+                        // Show filtered suggestions
+                        ForEach(filteredCategories, id: \.id) { category in
+                            Button(action: {
+                                onCategorySelected(category)
+                            }) {
+                                HStack {
+                                    Text(category.name)
+                                    Spacer()
+                                }
+                                .padding(.vertical, 4)
+                                .padding(.horizontal, 8)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                     
                     // Show option to create new category if no exact match
-                    if !filteredCategories.contains(where: { $0.name.lowercased() == categoryName.lowercased() }) {
+                    if !isLoadingCategories && !filteredCategories.contains(where: { $0.name.lowercased() == categoryName.lowercased() }) {
                         Divider()
                         Button(action: {
                             onCreateCategory()
