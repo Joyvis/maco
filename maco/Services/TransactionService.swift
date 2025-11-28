@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftData
 
 class TransactionService {
     static let shared = TransactionService()
@@ -32,34 +33,64 @@ class TransactionService {
             )
         )
         
-        // TODO: Uncomment when API is ready
-         return try await APIService.shared.post(
-             endpoint: "/transactions",
-             body: request,
-             responseType: TransactionResponse.self
-         )
-        
-        // Mock response for now
-//        return TransactionResponse(
-//            id: UUID().uuidString,
-//            amount: amount,
-//            type: type.rawValue,
-//            dueDate: dateFormatter.string(from: dueDate),
-//            description: description,
-//            categoryId: categoryId,
-//            recurringScheduleId: nil
-//        )
+        return try await APIService.shared.post(
+            endpoint: "/transactions",
+            body: request,
+            responseType: TransactionResponse.self
+        )
     }
     
     func fetchTransactions() async throws -> [TransactionResponse] {
-        // TODO: Implement API call when endpoint is available
-        // return try await APIService.shared.get(
-        //     endpoint: "/transactions",
-        //     responseType: [TransactionResponse].self
-        // )
+        return try await APIService.shared.get(
+            endpoint: "/transactions",
+            responseType: [TransactionResponse].self
+        )
+    }
+    
+    // MARK: - Sync Methods
+    
+    /// Parses ISO8601 date string to Date
+    private func parseDate(_ dateString: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: dateString)
+    }
+    
+    /// Syncs transactions from API to SwiftData
+    /// - Parameter modelContext: SwiftData model context to insert/update transactions
+    func syncTransactions(modelContext: ModelContext) async throws {
+        let responses = try await fetchTransactions()
         
-        // Return empty array for now
-        return []
+        // Fetch existing transactions to check for duplicates
+        let descriptor = FetchDescriptor<Transaction>()
+        let existingTransactions = try modelContext.fetch(descriptor)
+        let existingIds = Set(existingTransactions.compactMap { $0.id })
+        
+        for response in responses {
+            // Skip if transaction already exists
+            if existingIds.contains(response.id) {
+                continue
+            }
+            
+            // Parse date with fallback to current date
+            let dueDate = parseDate(response.dueDate) ?? Date()
+            
+            // Create SwiftData Transaction from API response
+            let transaction = Transaction(
+                id: response.id,
+                amount: response.amount,
+                type: TransactionType(rawValue: response.type) ?? .expense,
+                dueDate: dueDate,
+                transactionDescription: response.description,
+                categoryId: response.categoryId,
+                recurringScheduleId: response.recurringScheduleId
+            )
+            
+            modelContext.insert(transaction)
+        }
+        
+        // Save changes
+        try modelContext.save()
     }
 }
 

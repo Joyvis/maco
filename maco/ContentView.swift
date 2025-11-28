@@ -14,6 +14,8 @@ struct ContentView: View {
     @Query private var categories: [Category]
     
     @State private var showTransactionForm: Bool = false
+    @State private var isLoading: Bool = false
+    @State private var errorMessage: String? = nil
 
     var body: some View {
         NavigationStack {
@@ -39,6 +41,12 @@ struct ContentView: View {
             .sheet(isPresented: $showTransactionForm) {
                 TransactionFormView()
             }
+            .task {
+                await syncTransactions()
+            }
+            .refreshable {
+                await syncTransactions()
+            }
         }
     }
 
@@ -47,6 +55,18 @@ struct ContentView: View {
             for index in offsets {
                 modelContext.delete(transactions[index])
             }
+        }
+    }
+    
+    private func syncTransactions() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        
+        do {
+            try await TransactionService.shared.syncTransactions(modelContext: modelContext)
+        } catch {
+            errorMessage = "Failed to sync transactions: \(error.localizedDescription)"
         }
     }
 }
