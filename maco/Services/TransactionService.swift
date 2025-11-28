@@ -47,6 +47,10 @@ class TransactionService {
         )
     }
     
+    func deleteTransaction(id: String) async throws {
+        try await APIService.shared.delete(endpoint: "/transactions/\(id)")
+    }
+    
     // MARK: - Sync Methods
     
     /// Parses ISO8601 date string to Date

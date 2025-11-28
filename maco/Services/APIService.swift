@@ -174,5 +174,33 @@ class APIService {
     func patch<T: Codable, U: Codable>(endpoint: String, body: T, responseType: U.Type) async throws -> U {
         return try await request(endpoint: endpoint, method: .patch, body: body, responseType: responseType)
     }
+    
+    func delete(endpoint: String) async throws {
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            throw APIError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = HTTPMethod.delete.rawValue
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // TODO: Add Bearer token authentication
+        // if let token = authToken {
+        //     request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        // }
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+        
+        // DELETE typically returns 200 OK, 204 No Content, or 204 with empty body
+        // All of these are valid success responses
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.httpError(statusCode: httpResponse.statusCode)
+        }
+        // Note: Empty response body is expected and valid for DELETE requests
+    }
 }
 

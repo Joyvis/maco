@@ -16,14 +16,23 @@ struct ContentView: View {
     @State private var showTransactionForm: Bool = false
     @State private var isLoading: Bool = false
     @State private var errorMessage: String? = nil
+    @State private var transactionToDelete: Transaction? = nil
+    @State private var showDeleteAlert: Bool = false
 
     var body: some View {
         NavigationStack {
             List {
                 ForEach(transactions) { transaction in
                     TransactionRowView(transaction: transaction, categories: categories)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                transactionToDelete = transaction
+                                showDeleteAlert = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                 }
-                .onDelete(perform: deleteTransactions)
             }
             .navigationTitle("Transactions")
             .toolbar {
@@ -41,6 +50,19 @@ struct ContentView: View {
             .sheet(isPresented: $showTransactionForm) {
                 TransactionFormView()
             }
+            .alert("Delete Transaction", isPresented: $showDeleteAlert) {
+                Button("Cancel", role: .cancel) {
+                    transactionToDelete = nil
+                }
+                Button("Delete", role: .destructive) {
+                    if let transaction = transactionToDelete {
+                        performDeleteTransaction(transaction)
+                    }
+                    transactionToDelete = nil
+                }
+            } message: {
+                Text("Are you sure you want to delete this transaction? This action cannot be undone.")
+            }
             .task {
                 await syncTransactions()
             }
@@ -49,11 +71,22 @@ struct ContentView: View {
             }
         }
     }
-
-    private func deleteTransactions(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(transactions[index])
+    
+    private func performDeleteTransaction(_ transaction: Transaction) {
+        Task {
+            // Delete from API if transaction has an ID
+            if let transactionId = transaction.id {
+                do {
+                    try await TransactionService.shared.deleteTransaction(id: transactionId)
+                } catch {
+                    errorMessage = "Failed to delete transaction: \(error.localizedDescription)"
+                    return
+                }
+            }
+            
+            // Delete from SwiftData
+            withAnimation {
+                modelContext.delete(transaction)
             }
         }
     }
@@ -88,7 +121,7 @@ struct TransactionRowView: View {
         if let amount = Double(transaction.amount) {
             let formatter = NumberFormatter()
             formatter.numberStyle = .currency
-            formatter.currencyCode = "USD"
+            formatter.currencyCode = "BRL"
             return formatter.string(from: NSNumber(value: amount)) ?? transaction.amount
         }
         return transaction.amount
