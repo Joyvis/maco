@@ -123,10 +123,7 @@ struct TransactionRowView: View {
     let onTap: () -> Void
     
     private var categoryName: String {
-        guard let categoryId = transaction.categoryId else {
-            return "Uncategorized"
-        }
-        return categories.first(where: { $0.id == categoryId })?.name ?? "Unknown"
+        transaction.categoryName ?? "Uncategorized"
     }
     
     private var formattedAmount: String {

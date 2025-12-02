@@ -275,10 +275,12 @@ struct TransactionFormView: View {
                 
                 // Update SwiftData model
                 existingTransaction.amount = response.amount
-                existingTransaction.transactionType = TransactionType(rawValue: response.type) ?? .expense
+                // Normalize type to lowercase to handle API returning "Income"/"Expense"
+                existingTransaction.transactionType = TransactionType(rawValue: response.type.lowercased()) ?? .expense
                 existingTransaction.dueDate = parseDate(response.dueDate) ?? dueDate
                 existingTransaction.transactionDescription = response.description
                 existingTransaction.categoryId = response.categoryId
+                existingTransaction.categoryName = response.categoryName
                 existingTransaction.recurringScheduleId = response.recurringScheduleId
                 
                 try modelContext.save()
@@ -293,13 +295,15 @@ struct TransactionFormView: View {
                 )
                 
                 // Save to SwiftData
+                // Normalize type to lowercase to handle API returning "Income"/"Expense"
                 let newTransaction = Transaction(
                     id: response.id,
                     amount: response.amount,
-                    type: TransactionType(rawValue: response.type) ?? .expense,
+                    type: TransactionType(rawValue: response.type.lowercased()) ?? .expense,
                     dueDate: parseDate(response.dueDate) ?? dueDate,
                     transactionDescription: response.description,
                     categoryId: response.categoryId,
+                    categoryName: response.categoryName,
                     recurringScheduleId: response.recurringScheduleId
                 )
                 modelContext.insert(newTransaction)

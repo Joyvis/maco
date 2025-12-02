@@ -16,6 +16,7 @@ final class Transaction {
     var dueDate: Date
     var transactionDescription: String
     var categoryId: String?
+    var categoryName: String?  // ADD THIS
     var recurringScheduleId: String?
     var createdAt: Date
     
@@ -26,6 +27,7 @@ final class Transaction {
         dueDate: Date,
         transactionDescription: String,
         categoryId: String? = nil,
+        categoryName: String? = nil,  // ADD THIS
         recurringScheduleId: String? = nil
     ) {
         self.id = id
@@ -34,13 +36,15 @@ final class Transaction {
         self.dueDate = dueDate
         self.transactionDescription = transactionDescription
         self.categoryId = categoryId
+        self.categoryName = categoryName  // ADD THIS
         self.recurringScheduleId = recurringScheduleId
         self.createdAt = Date()
     }
     
     var transactionType: TransactionType {
         get {
-            TransactionType(rawValue: type) ?? .expense
+            // Normalize to lowercase to handle case variations
+            TransactionType(rawValue: type.lowercased()) ?? .expense
         }
         set {
             type = newValue.rawValue
@@ -77,6 +81,7 @@ struct TransactionResponse: Codable {
     let dueDate: String
     let description: String
     let categoryId: String?
+    let categoryName: String?  // ADD THIS - replaces nested category object
     let recurringScheduleId: String?
     
     enum CodingKeys: String, CodingKey {
@@ -86,6 +91,7 @@ struct TransactionResponse: Codable {
         case dueDate = "due_date"
         case description
         case categoryId = "category_id"
+        case categoryName = "category_name"  // ADD THIS
         case recurringScheduleId = "recurring_schedule_id"
     }
     
@@ -102,19 +108,17 @@ struct TransactionResponse: Codable {
         amount = try container.decode(String.self, forKey: .amount)
         
         // Handle missing type field - default to "expense" if not present
-        type = (try? container.decode(String.self, forKey: .type)) ?? "expense"
+        // Normalize to lowercase to handle API returning "Income"/"Expense" vs enum expecting "income"/"expense"
+        let rawType = (try? container.decode(String.self, forKey: .type)) ?? "expense"
+        type = rawType.lowercased()
         
         dueDate = try container.decode(String.self, forKey: .dueDate)
         description = try container.decode(String.self, forKey: .description)
         
-        // Handle categoryId as either Int or String
-        if let intCategoryId = try? container.decode(Int.self, forKey: .categoryId) {
-            categoryId = String(intCategoryId)
-        } else if let stringCategoryId = try? container.decode(String.self, forKey: .categoryId) {
-            categoryId = stringCategoryId
-        } else {
-            categoryId = nil
-        }
+        // REMOVE nested category decoding (lines 140-148)
+        // REPLACE with:
+        categoryId = try container.decodeIfPresent(String.self, forKey: .categoryId)
+        categoryName = try container.decodeIfPresent(String.self, forKey: .categoryName)
         
         // Handle recurringScheduleId as either Int or String
         if let intRecurringId = try? container.decode(Int.self, forKey: .recurringScheduleId) {

@@ -93,14 +93,27 @@ class TransactionService {
     func syncTransactions(modelContext: ModelContext) async throws {
         let responses = try await fetchTransactions()
         
-        // Fetch existing transactions to check for duplicates
-        let descriptor = FetchDescriptor<Transaction>()
-        let existingTransactions = try modelContext.fetch(descriptor)
-        let existingIds = Set(existingTransactions.compactMap { $0.id })
+        // Fetch existing transactions to check for duplicates and updates
+        let transactionDescriptor = FetchDescriptor<Transaction>()
+        let existingTransactions = try modelContext.fetch(transactionDescriptor)
+        let existingTransactionsById = Dictionary(uniqueKeysWithValues: existingTransactions.compactMap { transaction -> (String, Transaction)? in
+            guard let id = transaction.id else { return nil }
+            return (id, transaction)
+        })
         
+        // Update the transaction creation around line 154-162:
         for response in responses {
-            // Skip if transaction already exists
-            if existingIds.contains(response.id) {
+            // Check if transaction already exists
+            if let existingTransaction = existingTransactionsById[response.id] {
+                // Update all fields from API response to keep local data in sync
+                existingTransaction.amount = response.amount
+                // Normalize type to lowercase to handle API returning "Income"/"Expense"
+                existingTransaction.transactionType = TransactionType(rawValue: response.type.lowercased()) ?? .expense
+                existingTransaction.dueDate = parseDate(response.dueDate) ?? existingTransaction.dueDate
+                existingTransaction.transactionDescription = response.description
+                existingTransaction.categoryId = response.categoryId
+                existingTransaction.categoryName = response.categoryName
+                existingTransaction.recurringScheduleId = response.recurringScheduleId
                 continue
             }
             
@@ -108,20 +121,22 @@ class TransactionService {
             let dueDate = parseDate(response.dueDate) ?? Date()
             
             // Create SwiftData Transaction from API response
+            // Normalize type to lowercase to handle API returning "Income"/"Expense"
             let transaction = Transaction(
                 id: response.id,
                 amount: response.amount,
-                type: TransactionType(rawValue: response.type) ?? .expense,
+                type: TransactionType(rawValue: response.type.lowercased()) ?? .expense,
                 dueDate: dueDate,
                 transactionDescription: response.description,
                 categoryId: response.categoryId,
+                categoryName: response.categoryName,
                 recurringScheduleId: response.recurringScheduleId
             )
             
             modelContext.insert(transaction)
         }
         
-        // Save changes
+        // Save all changes (categories and transactions)
         try modelContext.save()
     }
 }
