@@ -148,7 +148,7 @@ struct TransactionRowView: View {
             }
             
             HStack {
-                Label(transaction.transactionType.displayName, systemImage: transaction.transactionType == .income ? "arrow.down.circle.fill" : "arrow.up.circle.fill")
+                Label(transaction.transactionType.displayName, systemImage: transaction.transactionType == .income ? "plus.circle.fill" : "minus.circle.fill")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
