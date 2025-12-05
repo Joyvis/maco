@@ -98,12 +98,7 @@ struct TransactionResponse: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Handle id as either Int or String
-        if let intId = try? container.decode(Int.self, forKey: .id) {
-            id = String(intId)
-        } else {
-            id = try container.decode(String.self, forKey: .id)
-        }
+        id = try container.decode(String.self, forKey: .id)
         
         amount = try container.decode(String.self, forKey: .amount)
         
@@ -120,14 +115,7 @@ struct TransactionResponse: Codable {
         categoryId = try container.decodeIfPresent(String.self, forKey: .categoryId)
         categoryName = try container.decodeIfPresent(String.self, forKey: .categoryName)
         
-        // Handle recurringScheduleId as either Int or String
-        if let intRecurringId = try? container.decode(Int.self, forKey: .recurringScheduleId) {
-            recurringScheduleId = String(intRecurringId)
-        } else if let stringRecurringId = try? container.decode(String.self, forKey: .recurringScheduleId) {
-            recurringScheduleId = stringRecurringId
-        } else {
-            recurringScheduleId = nil
-        }
+        recurringScheduleId = try container.decodeIfPresent(String.self, forKey: .recurringScheduleId)
     }
 }
 

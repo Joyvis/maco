@@ -152,12 +152,14 @@ struct TransactionRowView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
-                Text("•")
-                    .foregroundColor(.secondary)
-                
-                Text(categoryName)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if transaction.transactionType == .expense {
+                    Text("•")
+                        .foregroundColor(.secondary)
+                    
+                    Text(categoryName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 
                 Spacer()
                 

@@ -63,26 +63,28 @@ struct TransactionFormView: View {
                         .lineLimit(3...6)
                 }
                 
-                Section("Category") {
-                    CategoryAutocompleteView(
-                        categoryName: $categoryName,
-                        selectedCategoryId: $selectedCategoryId,
-                        availableCategories: availableCategories,
-                        filteredCategories: $filteredCategories,
-                        showSuggestions: $showCategorySuggestions,
-                        isCreatingCategory: $isCreatingCategory,
-                        isLoadingCategories: isLoadingCategories,
-                        onCategorySelected: { category in
-                            selectedCategoryId = category.id
-                            categoryName = category.name
-                            showCategorySuggestions = false
-                        },
-                        onCreateCategory: {
-                            Task {
-                                await createNewCategory()
+                if selectedType == .expense {
+                    Section("Category") {
+                        CategoryAutocompleteView(
+                            categoryName: $categoryName,
+                            selectedCategoryId: $selectedCategoryId,
+                            availableCategories: availableCategories,
+                            filteredCategories: $filteredCategories,
+                            showSuggestions: $showCategorySuggestions,
+                            isCreatingCategory: $isCreatingCategory,
+                            isLoadingCategories: isLoadingCategories,
+                            onCategorySelected: { category in
+                                selectedCategoryId = category.id
+                                categoryName = category.name
+                                showCategorySuggestions = false
+                            },
+                            onCreateCategory: {
+                                Task {
+                                    await createNewCategory()
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
                 
                 if let errorMessage = errorMessage {
@@ -111,10 +113,27 @@ struct TransactionFormView: View {
                 }
             }
             .task {
-                await loadCategories()
+                if selectedType == .expense {
+                    await loadCategories()
+                }
+            }
+            .onChange(of: selectedType) { oldValue, newValue in
+                if newValue == .income {
+                    // Clear category selection when switching to Income
+                    selectedCategoryId = nil
+                    categoryName = ""
+                    showCategorySuggestions = false
+                } else if newValue == .expense && oldValue == .income {
+                    // Load categories when switching to Expense
+                    Task {
+                        await loadCategories()
+                    }
+                }
             }
             .onChange(of: categoryName) { oldValue, newValue in
-                filterCategories(query: newValue)
+                if selectedType == .expense {
+                    filterCategories(query: newValue)
+                }
             }
             .onDisappear {
                 // Cancel any pending search when view disappears
@@ -205,13 +224,20 @@ struct TransactionFormView: View {
         dueDate = transaction.dueDate
         description = transaction.transactionDescription
         
-        // Look up category name from available categories
-        if let categoryId = transaction.categoryId,
-           let category = availableCategories.first(where: { $0.id == categoryId }) {
-            selectedCategoryId = category.id
-            categoryName = category.name
+        // Only set category for Expense transactions
+        if transaction.transactionType == .expense {
+            // Look up category name from available categories
+            if let categoryId = transaction.categoryId,
+               let category = availableCategories.first(where: { $0.id == categoryId }) {
+                selectedCategoryId = category.id
+                categoryName = category.name
+            } else {
+                selectedCategoryId = transaction.categoryId
+                categoryName = ""
+            }
         } else {
-            selectedCategoryId = transaction.categoryId
+            // Clear category for Income transactions
+            selectedCategoryId = nil
             categoryName = ""
         }
     }
@@ -259,6 +285,9 @@ struct TransactionFormView: View {
         // Format amount as currency string
         let formattedAmount = formatCurrency(amount)
         
+        // Only pass categoryId for Expense transactions
+        let categoryIdToSend = selectedType == .expense ? selectedCategoryId : nil
+        
         do {
             let response: TransactionResponse
             
@@ -270,7 +299,7 @@ struct TransactionFormView: View {
                     type: selectedType,
                     dueDate: dueDate,
                     description: description,
-                    categoryId: selectedCategoryId
+                    categoryId: categoryIdToSend
                 )
                 
                 // Update SwiftData model
@@ -291,7 +320,7 @@ struct TransactionFormView: View {
                     type: selectedType,
                     dueDate: dueDate,
                     description: description,
-                    categoryId: selectedCategoryId
+                    categoryId: categoryIdToSend
                 )
                 
                 // Save to SwiftData
