@@ -12,7 +12,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Transaction.createdAt, order: .reverse) private var transactions: [Transaction]
     @Query private var categories: [Category]
-    
+
     @State private var showTransactionForm: Bool = false
     @State private var isLoading: Bool = false
     @State private var errorMessage: String? = nil
@@ -82,7 +82,7 @@ struct ContentView: View {
             }
         }
     }
-    
+
     private func performDeleteTransaction(_ transaction: Transaction) {
         Task {
             // Delete from API if transaction has an ID
@@ -123,9 +123,28 @@ struct TransactionRowView: View {
     let onTap: () -> Void
     
     private var categoryName: String {
-        transaction.categoryName ?? "Uncategorized"
+        if transaction.transactionType == .income {
+            return ""
+        } else {
+            return transaction.categoryName ?? "Uncategorized"
+        }
     }
-    
+
+    private var status: String {
+        return transaction.status ?? ""
+    }
+
+    private var statusColor: Color {
+        switch transaction.status {
+        case "approved":
+            return .green
+        case "overdue":
+            return .red
+        default:
+            return .secondary
+        }
+    }
+
     private var formattedAmount: String {
         if let amount = Double(transaction.amount) {
             let formatter = NumberFormatter()
@@ -135,7 +154,7 @@ struct TransactionRowView: View {
         }
         return transaction.amount
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -146,23 +165,23 @@ struct TransactionRowView: View {
                     .font(.headline)
                     .foregroundColor(transaction.transactionType == .income ? .green : .red)
             }
-            
+
             HStack {
-                Label(transaction.transactionType.displayName, systemImage: transaction.transactionType == .income ? "plus.circle.fill" : "minus.circle.fill")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
+                if transaction.transactionType != .income {
+                    Text(status).font(.caption).foregroundColor(statusColor)
+                }
+
                 if transaction.transactionType == .expense {
                     Text("•")
                         .foregroundColor(.secondary)
-                    
+
                     Text(categoryName)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                
+
                 Spacer()
-                
+
                 Text(transaction.dueDate, format: .dateTime.month().day().year())
                     .font(.caption)
                     .foregroundColor(.secondary)

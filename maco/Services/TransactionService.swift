@@ -18,7 +18,8 @@ class TransactionService {
         type: TransactionType,
         dueDate: Date,
         description: String,
-        categoryId: String?
+        categoryId: String?,
+        status: String?
     ) async throws -> TransactionResponse {
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -29,7 +30,8 @@ class TransactionService {
                 type: type.rawValue,
                 dueDate: dateFormatter.string(from: dueDate),
                 description: description,
-                categoryId: categoryId
+                categoryId: categoryId,
+                status: status
             )
         )
         
@@ -46,7 +48,8 @@ class TransactionService {
         type: TransactionType,
         dueDate: Date,
         description: String,
-        categoryId: String?
+        categoryId: String?,
+        status: String?
     ) async throws -> TransactionResponse {
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -57,7 +60,8 @@ class TransactionService {
                 type: type.rawValue,
                 dueDate: dateFormatter.string(from: dueDate),
                 description: description,
-                categoryId: categoryId
+                categoryId: categoryId,
+                status: status
             )
         )
         
@@ -87,12 +91,11 @@ class TransactionService {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.date(from: dateString)
     }
-    
+
     /// Syncs transactions from API to SwiftData
     /// - Parameter modelContext: SwiftData model context to insert/update transactions
     func syncTransactions(modelContext: ModelContext) async throws {
         let responses = try await fetchTransactions()
-        
         // Fetch existing transactions to check for duplicates and updates
         let transactionDescriptor = FetchDescriptor<Transaction>()
         let existingTransactions = try modelContext.fetch(transactionDescriptor)
@@ -100,7 +103,7 @@ class TransactionService {
             guard let id = transaction.id else { return nil }
             return (id, transaction)
         })
-        
+
         // Update the transaction creation around line 154-162:
         for response in responses {
             // Check if transaction already exists
@@ -112,6 +115,7 @@ class TransactionService {
                 existingTransaction.dueDate = parseDate(response.dueDate) ?? existingTransaction.dueDate
                 existingTransaction.transactionDescription = response.description
                 existingTransaction.categoryId = response.categoryId
+                existingTransaction.status = response.status
                 existingTransaction.categoryName = response.categoryName
                 existingTransaction.recurringScheduleId = response.recurringScheduleId
                 continue
@@ -129,6 +133,7 @@ class TransactionService {
                 dueDate: dueDate,
                 transactionDescription: response.description,
                 categoryId: response.categoryId,
+                status: response.status,
                 categoryName: response.categoryName,
                 recurringScheduleId: response.recurringScheduleId
             )

@@ -20,6 +20,7 @@ struct TransactionFormView: View {
     @State private var description: String = ""
     @State private var categoryName: String = ""
     @State private var selectedCategoryId: String? = nil
+    @State private var status: String? = nil
     
     @State private var availableCategories: [CategoryResponse] = []
     @State private var filteredCategories: [CategoryResponse] = []
@@ -299,7 +300,8 @@ struct TransactionFormView: View {
                     type: selectedType,
                     dueDate: dueDate,
                     description: description,
-                    categoryId: categoryIdToSend
+                    categoryId: categoryIdToSend,
+                    status: status
                 )
                 
                 // Update SwiftData model
@@ -309,6 +311,7 @@ struct TransactionFormView: View {
                 existingTransaction.dueDate = parseDate(response.dueDate) ?? dueDate
                 existingTransaction.transactionDescription = response.description
                 existingTransaction.categoryId = response.categoryId
+                existingTransaction.status = response.status
                 existingTransaction.categoryName = response.categoryName
                 existingTransaction.recurringScheduleId = response.recurringScheduleId
                 
@@ -320,7 +323,8 @@ struct TransactionFormView: View {
                     type: selectedType,
                     dueDate: dueDate,
                     description: description,
-                    categoryId: categoryIdToSend
+                    categoryId: categoryIdToSend,
+                    status: status
                 )
                 
                 // Save to SwiftData
@@ -332,6 +336,7 @@ struct TransactionFormView: View {
                     dueDate: parseDate(response.dueDate) ?? dueDate,
                     transactionDescription: response.description,
                     categoryId: response.categoryId,
+                    status: response.status,
                     categoryName: response.categoryName,
                     recurringScheduleId: response.recurringScheduleId
                 )
