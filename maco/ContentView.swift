@@ -19,6 +19,17 @@ struct ContentView: View {
     @State private var transactionToDelete: Transaction? = nil
     @State private var showDeleteAlert: Bool = false
     @State private var transactionToEdit: Transaction? = nil
+    
+    // Month picker state
+    private let calendar = Calendar.current
+    @State private var selectedMonth: Int = {
+        let now = Date()
+        return Calendar.current.component(.month, from: now)
+    }()
+    @State private var selectedYear: Int = {
+        let now = Date()
+        return Calendar.current.component(.year, from: now)
+    }()
 
     // Filter out invoice items (they're children of Invoice transactions)
     private var topLevelTransactions: [Transaction] {
@@ -67,8 +78,21 @@ struct ContentView: View {
     
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(topLevelTransactions) { transaction in
+            VStack(spacing: 0) {
+                MonthPickerView(
+                    initialMonth: selectedMonth,
+                    initialYear: selectedYear,
+                    onMonthSelected: { month, year in
+                        selectedMonth = month
+                        selectedYear = year
+                        Task {
+                            await syncTransactions()
+                        }
+                    }
+                )
+                
+                List {
+                    ForEach(topLevelTransactions) { transaction in
                     TransactionRowView(
                         transaction: transaction,
                         categories: categories,
@@ -110,6 +134,7 @@ struct ContentView: View {
                         }
                     }
                     .padding(.vertical, 4)
+                }
                 }
             }
             .navigationTitle("Transactions")
@@ -178,7 +203,11 @@ struct ContentView: View {
         defer { isLoading = false }
         
         do {
-            try await TransactionService.shared.syncTransactions(modelContext: modelContext)
+            try await TransactionService.shared.syncTransactions(
+                modelContext: modelContext,
+                month: selectedMonth,
+                year: selectedYear
+            )
         } catch {
             errorMessage = "Failed to sync transactions: \(error.localizedDescription)"
         }

@@ -72,11 +72,21 @@ class TransactionService {
         )
     }
     
-    func fetchTransactions() async throws -> [TransactionResponse] {
+    func fetchTransactions(month: Int? = nil, year: Int? = nil) async throws -> [TransactionResponse] {
+        // Build query parameters if month/year are provided
+        var queryParameters: [String: String]? = nil
+        if let month = month, let year = year {
+            queryParameters = [
+                "month": String(month),
+                "year": String(year)
+            ]
+        }
+        
         // Try to decode as wrapper response first, fallback to array
         do {
             let wrapperResponse = try await APIService.shared.get(
                 endpoint: "/transactions",
+                queryParameters: queryParameters,
                 responseType: TransactionsListResponse.self
             )
             return wrapperResponse.transactions
@@ -84,6 +94,7 @@ class TransactionService {
             // Fallback to direct array response if wrapper decoding fails
             return try await APIService.shared.get(
                 endpoint: "/transactions",
+                queryParameters: queryParameters,
                 responseType: [TransactionResponse].self
             )
         }
@@ -169,16 +180,24 @@ class TransactionService {
     }
     
     /// Syncs transactions from API to SwiftData
-    /// - Parameter modelContext: SwiftData model context to insert/update transactions
-    func syncTransactions(modelContext: ModelContext) async throws {
-        let responses = try await fetchTransactions()
+    /// - Parameters:
+    ///   - modelContext: SwiftData model context to insert/update transactions
+    ///   - month: Optional month (1-12) to filter transactions
+    ///   - year: Optional year to filter transactions
+    func syncTransactions(modelContext: ModelContext, month: Int? = nil, year: Int? = nil) async throws {
+        let responses = try await fetchTransactions(month: month, year: year)
         // Fetch existing transactions to check for duplicates and updates
         let transactionDescriptor = FetchDescriptor<Transaction>()
         let existingTransactions = try modelContext.fetch(transactionDescriptor)
-        let existingTransactionsById = Dictionary(uniqueKeysWithValues: existingTransactions.compactMap { transaction -> (String, Transaction)? in
-            guard let id = transaction.id else { return nil }
-            return (id, transaction)
-        })
+        // Use reduce to handle potential duplicate IDs gracefully (keep the first occurrence)
+        let existingTransactionsById = existingTransactions.reduce(into: [String: Transaction]()) { dict, transaction in
+            if let id = transaction.id {
+                // Only add if key doesn't already exist to avoid duplicates
+                if dict[id] == nil {
+                    dict[id] = transaction
+                }
+            }
+        }
 
         // Process each transaction response
         for response in responses {
