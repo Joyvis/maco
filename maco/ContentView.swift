@@ -77,8 +77,43 @@ struct ContentView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
+        PageLayout(
+            title: "Transactions",
+            isMenuOpen: .constant(false), // Will be managed by parent
+            content: {
+                List {
+                    ForEach(topLevelTransactions) { transaction in
+                        TransactionRowView(
+                            transaction: transaction,
+                            categories: categories,
+                            onTap: { tappedTransaction in
+                                transactionToEdit = tappedTransaction
+                                showTransactionForm = true
+                            }
+                        )
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                transactionToDelete = transaction
+                                showDeleteAlert = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+                .refreshable {
+                    await syncTransactions()
+                }
+            },
+            addButton: AnyView(
+                Button(action: {
+                    transactionToEdit = nil
+                    showTransactionForm = true
+                }) {
+                    Label("Add Transaction", systemImage: "plus")
+                }
+            ),
+            monthPicker: AnyView(
                 MonthPickerView(
                     initialMonth: selectedMonth,
                     initialYear: selectedYear,
@@ -90,91 +125,37 @@ struct ContentView: View {
                         }
                     }
                 )
-                
-                List {
-                    ForEach(topLevelTransactions) { transaction in
-                    TransactionRowView(
-                        transaction: transaction,
-                        categories: categories,
-                        onTap: { tappedTransaction in
-                            transactionToEdit = tappedTransaction
-                            showTransactionForm = true
-                        }
-                    )
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            transactionToDelete = transaction
-                            showDeleteAlert = true
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                }
-                
-                // Summary footer
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("PENDING:")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            Text(formatCurrency(pendingTotal))
-                                .font(.subheadline)
-                                .foregroundColor(.red)
-                        }
-                        
-                        HStack {
-                            Text("TOTAL:")
-                                .font(.headline)
-                            Spacer()
-                            Text(formatCurrency(totalAmount))
-                                .font(.headline)
-                                .foregroundColor(totalAmount >= 0 ? .green : .red)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-                }
+            ),
+            totalComponent: AnyView(
+                TotalComponent(
+                    pendingTotal: pendingTotal,
+                    totalAmount: totalAmount
+                )
+            )
+        )
+        .sheet(isPresented: $showTransactionForm) {
+            TransactionFormView(transaction: transactionToEdit)
+        }
+        .onChange(of: showTransactionForm) { oldValue, newValue in
+            if !newValue {
+                transactionToEdit = nil
             }
-            .navigationTitle("Transactions")
-            .toolbar {
-                ToolbarItem {
-                    Button(action: {
-                        transactionToEdit = nil
-                        showTransactionForm = true
-                    }) {
-                        Label("Add Transaction", systemImage: "plus")
-                    }
+        }
+        .alert("Delete Transaction", isPresented: $showDeleteAlert) {
+            Button("Cancel", role: .cancel) {
+                transactionToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let transaction = transactionToDelete {
+                    performDeleteTransaction(transaction)
                 }
+                transactionToDelete = nil
             }
-            .sheet(isPresented: $showTransactionForm) {
-                TransactionFormView(transaction: transactionToEdit)
-            }
-            .onChange(of: showTransactionForm) { oldValue, newValue in
-                if !newValue {
-                    transactionToEdit = nil
-                }
-            }
-            .alert("Delete Transaction", isPresented: $showDeleteAlert) {
-                Button("Cancel", role: .cancel) {
-                    transactionToDelete = nil
-                }
-                Button("Delete", role: .destructive) {
-                    if let transaction = transactionToDelete {
-                        performDeleteTransaction(transaction)
-                    }
-                    transactionToDelete = nil
-                }
-            } message: {
-                Text("Are you sure you want to delete this transaction? This action cannot be undone.")
-            }
-            .task {
-                await syncTransactions()
-            }
-            .refreshable {
-                await syncTransactions()
-            }
+        } message: {
+            Text("Are you sure you want to delete this transaction? This action cannot be undone.")
+        }
+        .task {
+            await syncTransactions()
         }
     }
 
