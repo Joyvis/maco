@@ -10,6 +10,7 @@ import Foundation
 enum TransactionType: String, Codable, CaseIterable {
     case income = "income"
     case expense = "expense"
+    case invoice = "invoice"
     
     var displayName: String {
         switch self {
@@ -17,6 +18,8 @@ enum TransactionType: String, Codable, CaseIterable {
             return "Income"
         case .expense:
             return "Expense"
+        case .invoice:
+            return "Invoice"
         }
     }
 }

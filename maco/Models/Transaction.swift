@@ -21,6 +21,11 @@ final class Transaction {
     var recurringScheduleId: String?
     var createdAt: Date
     
+    @Relationship(deleteRule: .cascade, inverse: \Transaction.parentInvoice)
+    var invoiceItems: [Transaction]?
+    
+    var parentInvoice: Transaction?
+    
     init(
         id: String? = nil,
         amount: String,
@@ -30,7 +35,8 @@ final class Transaction {
         categoryId: String? = nil,
         status: String? = nil,
         categoryName: String? = nil,  // ADD THIS
-        recurringScheduleId: String? = nil
+        recurringScheduleId: String? = nil,
+        invoiceItems: [Transaction]? = nil
     ) {
         self.id = id
         self.amount = amount
@@ -41,6 +47,7 @@ final class Transaction {
         self.status = status
         self.categoryName = categoryName  // ADD THIS
         self.recurringScheduleId = recurringScheduleId
+        self.invoiceItems = invoiceItems
         self.createdAt = Date()
     }
 
@@ -56,6 +63,11 @@ final class Transaction {
 }
 
 // MARK: - API Models
+
+struct TransactionsListResponse: Codable {
+    let total: String
+    let transactions: [TransactionResponse]
+}
 
 struct TransactionRequest: Codable {
     let transaction: TransactionAttributes
@@ -89,6 +101,7 @@ struct TransactionResponse: Codable {
     let status: String?
     let categoryName: String?  // ADD THIS - replaces nested category object
     let recurringScheduleId: String?
+    let invoiceItems: [TransactionResponse]?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -100,6 +113,7 @@ struct TransactionResponse: Codable {
         case status
         case categoryName = "category_name"  // ADD THIS
         case recurringScheduleId = "recurring_schedule_id"
+        case invoiceItems = "invoice_items"
     }
 
     init(from decoder: Decoder) throws {
@@ -118,6 +132,7 @@ struct TransactionResponse: Codable {
         status = try container.decodeIfPresent(String.self, forKey: .status)
         categoryName = try container.decodeIfPresent(String.self, forKey: .categoryName)
         recurringScheduleId = try container.decodeIfPresent(String.self, forKey: .recurringScheduleId)
+        invoiceItems = try container.decodeIfPresent([TransactionResponse].self, forKey: .invoiceItems)
     }
 }
 
