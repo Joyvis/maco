@@ -95,7 +95,7 @@ struct TransactionRowView: View {
                     onTap(transaction)
                 }
             }
-            
+
             // Invoice items (expanded)
             if isExpanded && isInvoice, let invoiceItems = transaction.invoiceItems, !invoiceItems.isEmpty {
                 ForEach(invoiceItems) { item in
