@@ -39,7 +39,7 @@ struct TransactionRowView: View {
                     Text(transaction.transactionDescription)
                         .font(.headline)
                     Spacer()
-                    
+
                     if isInvoice && hasInvoiceItems {
                         Image(systemName: "chevron.down")
                             .font(.caption)
@@ -47,7 +47,7 @@ struct TransactionRowView: View {
                             .rotationEffect(.degrees(isExpanded ? 180 : 0))
                             .animation(.easeInOut(duration: 0.2), value: isExpanded)
                     }
-                    
+
                     Text(transaction.formattedAmount)
                         .font(.headline)
                         .foregroundColor(transaction.transactionType == .income ? .green : .red)

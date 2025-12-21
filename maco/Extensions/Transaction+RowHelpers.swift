@@ -40,7 +40,7 @@ extension Transaction {
     
     /// Returns the category name, or "Uncategorized" if nil
     var displayCategoryName: String {
-        return self.categoryName ?? "Uncategorized"
+        return self.categoryName ?? ""
     }
 }
 

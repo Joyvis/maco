@@ -21,7 +21,7 @@ struct InvoiceItemRowView: View {
                     .font(.subheadline)
                     .foregroundColor(.red)
             }
-            
+
             HStack {
                 if !transaction.displayStatus.isEmpty {
                     Text(transaction.displayStatus.uppercased())
@@ -32,16 +32,13 @@ struct InvoiceItemRowView: View {
                         .background(transaction.statusColor)
                         .cornerRadius(4)
                 }
-                
-                Text("•")
-                    .foregroundColor(.secondary)
-                
+
                 Text(transaction.displayCategoryName)
                     .font(.caption2)
                     .foregroundColor(.secondary)
-                
+
                 Spacer()
-                
+
                 Text(transaction.dueDate, format: .dateTime.month().day().year())
                     .font(.caption2)
                     .foregroundColor(.secondary)
