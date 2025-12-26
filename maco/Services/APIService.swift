@@ -184,6 +184,13 @@ class APIService {
         return try await request(endpoint: endpoint, method: .get, queryParameters: queryParameters, responseType: responseType)
     }
     
+    func get<U: Codable>(endpoint: String, filters: FilterSet?, responseType: U.Type) async throws -> U {
+        let queryParameters = filters?.toQueryParameters()
+        // Only pass query parameters if the dictionary is not empty
+        let queryParams = (queryParameters != nil && !queryParameters!.isEmpty) ? queryParameters : nil
+        return try await request(endpoint: endpoint, method: .get, queryParameters: queryParams, responseType: responseType)
+    }
+    
     func post<T: Codable, U: Codable>(endpoint: String, body: T, responseType: U.Type) async throws -> U {
         return try await request(endpoint: endpoint, method: .post, body: body, responseType: responseType)
     }

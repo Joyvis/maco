@@ -20,54 +20,45 @@ struct TransactionsPageView: View {
     @State private var transactionToDelete: Transaction? = nil
     @State private var showDeleteAlert: Bool = false
     @State private var transactionToEdit: Transaction? = nil
+    @State private var apiTotal: String = "0.00"
+    @State private var apiPending: String = "0.00"
     
-    // Month picker state
-    private let calendar = Calendar.current
-    @State private var selectedMonth: Int = {
+    // Filter state - using StateObject to observe @Published properties
+    @StateObject private var filters: FilterSet = {
+        let calendar = Calendar.current
         let now = Date()
-        return Calendar.current.component(.month, from: now)
-    }()
-    @State private var selectedYear: Int = {
-        let now = Date()
-        return Calendar.current.component(.year, from: now)
+        let month = calendar.component(.month, from: now)
+        let year = calendar.component(.year, from: now)
+        return FilterSet(monthYearFilter: MonthYearFilter(month: month, year: year))
     }()
 
-    // Filter out invoice items (they're children of Invoice transactions)
+    // Filter out invoice items and filter by selected month/year
     private var topLevelTransactions: [Transaction] {
-        transactions.filter { $0.parentInvoice == nil }
+        let calendar = Calendar.current
+        let filtered = transactions.filter { transaction in
+            // Filter out invoice items
+            guard transaction.parentInvoice == nil else { return false }
+            
+            // If month/year filter is set, filter by dueDate
+            if let monthYearFilter = filters.monthYearFilter {
+                let transactionMonth = calendar.component(.month, from: transaction.dueDate)
+                let transactionYear = calendar.component(.year, from: transaction.dueDate)
+                return transactionMonth == monthYearFilter.month && transactionYear == monthYearFilter.year
+            }
+            
+            // If no filter, show all
+            return true
+        }
+        return filtered
     }
     
+    // Convert API string values to Double for TotalComponent
     private var pendingTotal: Double {
-        topLevelTransactions
-            .filter { ($0.status ?? "").lowercased() == "pending" }
-            .compactMap { transaction -> (Double, TransactionType)? in
-                guard let amount = Double(transaction.amount) else { return nil }
-                return (amount, transaction.transactionType)
-            }
-            .reduce(0) { result, item in
-                switch item.1 {
-                case .income:
-                    return result + item.0
-                case .expense, .invoice:
-                    return result - item.0
-                }
-            }
+        Double(apiPending) ?? 0.0
     }
     
     private var totalAmount: Double {
-        topLevelTransactions
-            .compactMap { transaction -> (Double, TransactionType)? in
-                guard let amount = Double(transaction.amount) else { return nil }
-                return (amount, transaction.transactionType)
-            }
-            .reduce(0) { result, item in
-                switch item.1 {
-                case .income:
-                    return result + item.0
-                case .expense, .invoice:
-                    return result - item.0
-                }
-            }
+        Double(apiTotal) ?? 0.0
     }
     
     var body: some View {
@@ -103,6 +94,7 @@ struct TransactionsPageView: View {
                         )
                     }
                 }
+                .id("\(filters.monthYearFilter?.month ?? 0)-\(filters.monthYearFilter?.year ?? 0)")
                 .refreshable {
                     await syncTransactions()
                 }
@@ -117,14 +109,9 @@ struct TransactionsPageView: View {
             ),
             monthPicker: AnyView(
                 MonthPickerView(
-                    initialMonth: selectedMonth,
-                    initialYear: selectedYear,
-                    onMonthSelected: { month, year in
-                        selectedMonth = month
-                        selectedYear = year
-                        Task {
-                            await syncTransactions()
-                        }
+                    initialFilter: filters.monthYearFilter,
+                    onMonthSelected: { monthYearFilter in
+                        filters.monthYearFilter = monthYearFilter
                     }
                 )
             )
@@ -153,6 +140,11 @@ struct TransactionsPageView: View {
         .task {
             await syncTransactions()
         }
+        .onReceive(filters.$monthYearFilter) { _ in
+            Task {
+                await syncTransactions()
+            }
+        }
     }
 
     private func performDeleteTransaction(_ transaction: Transaction) {
@@ -180,11 +172,15 @@ struct TransactionsPageView: View {
         defer { isLoading = false }
         
         do {
-            try await TransactionService.shared.syncTransactions(
+            // Only pass filters if they have at least one filter set
+            let activeFilters = filters.hasFilters() ? filters : nil
+            let summary = try await TransactionService.shared.syncTransactions(
                 modelContext: modelContext,
-                month: selectedMonth,
-                year: selectedYear
+                filters: activeFilters
             )
+            // Update state with API-provided totals
+            apiTotal = summary.total
+            apiPending = summary.pending
         } catch {
             errorMessage = "Failed to sync transactions: \(error.localizedDescription)"
         }
