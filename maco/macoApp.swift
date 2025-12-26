@@ -14,6 +14,7 @@ struct macoApp: App {
         let schema = Schema([
             Transaction.self,
             Category.self,
+            PaymentMethod.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

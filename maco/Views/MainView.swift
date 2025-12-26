@@ -78,6 +78,6 @@ struct PaymentMethodsPageView: View {
 
 #Preview {
     MainView()
-        .modelContainer(for: [Transaction.self, Category.self], inMemory: true)
+        .modelContainer(for: [Transaction.self, Category.self, PaymentMethod.self], inMemory: true)
 }
 

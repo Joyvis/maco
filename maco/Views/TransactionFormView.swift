@@ -20,14 +20,17 @@ struct TransactionFormView: View {
     @State private var description: String = ""
     @State private var categoryName: String = ""
     @State private var selectedCategoryId: String? = nil
+    @State private var selectedPaymentMethodId: String? = nil
     @State private var status: String? = nil
     
     @State private var availableCategories: [CategoryResponse] = []
     @State private var filteredCategories: [CategoryResponse] = []
     @State private var showCategorySuggestions: Bool = false
     @State private var isCreatingCategory: Bool = false
+    @State private var availablePaymentMethods: [PaymentMethodResponse] = []
     @State private var isLoading: Bool = false
     @State private var isLoadingCategories: Bool = false
+    @State private var isLoadingPaymentMethods: Bool = false
     @State private var errorMessage: String? = nil
     @State private var searchTask: Task<Void, Never>? = nil
     
@@ -88,6 +91,14 @@ struct TransactionFormView: View {
                     }
                 }
                 
+                Section("Payment Method") {
+                    PaymentMethodPickerView(
+                        selectedPaymentMethodId: $selectedPaymentMethodId,
+                        availablePaymentMethods: availablePaymentMethods,
+                        isLoadingPaymentMethods: isLoadingPaymentMethods
+                    )
+                }
+                
                 if let errorMessage = errorMessage {
                     Section {
                         Text(errorMessage)
@@ -114,8 +125,13 @@ struct TransactionFormView: View {
                 }
             }
             .task {
+                await loadPaymentMethods()
                 if selectedType == .expense {
                     await loadCategories()
+                }
+                // If we have a transaction, prefill after data is loaded
+                if let transaction = transaction {
+                    prefillForm(with: transaction)
                 }
             }
             .onChange(of: selectedType) { oldValue, newValue in
@@ -147,7 +163,8 @@ struct TransactionFormView: View {
         !amount.isEmpty &&
         !description.isEmpty &&
         Double(amount) != nil &&
-        Double(amount)! > 0
+        Double(amount)! > 0 &&
+        selectedPaymentMethodId != nil
     }
     
     private func filterCategories(query: String) {
@@ -204,12 +221,19 @@ struct TransactionFormView: View {
         do {
             availableCategories = try await CategoryService.shared.fetchCategories()
             filteredCategories = availableCategories
-            // If we have a transaction, prefill after categories are loaded
-            if let transaction = transaction {
-                prefillForm(with: transaction)
-            }
         } catch {
             errorMessage = "Failed to load categories: \(error.localizedDescription)"
+        }
+    }
+    
+    private func loadPaymentMethods() async {
+        isLoadingPaymentMethods = true
+        defer { isLoadingPaymentMethods = false }
+        
+        do {
+            availablePaymentMethods = try await PaymentMethodService.shared.fetchPaymentMethods()
+        } catch {
+            errorMessage = "Failed to load payment methods: \(error.localizedDescription)"
         }
     }
     
@@ -241,6 +265,9 @@ struct TransactionFormView: View {
             selectedCategoryId = nil
             categoryName = ""
         }
+        
+        // Set payment method
+        selectedPaymentMethodId = transaction.paymentMethodId
     }
     
     private func createNewCategory() async {
@@ -301,7 +328,8 @@ struct TransactionFormView: View {
                     dueDate: dueDate,
                     description: description,
                     categoryId: categoryIdToSend,
-                    status: status
+                    status: status,
+                    paymentMethodId: selectedPaymentMethodId
                 )
                 
                 // Update SwiftData model
@@ -313,6 +341,7 @@ struct TransactionFormView: View {
                 existingTransaction.categoryId = response.categoryId
                 existingTransaction.status = response.status
                 existingTransaction.categoryName = response.categoryName
+                existingTransaction.paymentMethodId = response.paymentMethodId
                 existingTransaction.recurringScheduleId = response.recurringScheduleId
                 
                 try modelContext.save()
@@ -324,7 +353,8 @@ struct TransactionFormView: View {
                     dueDate: dueDate,
                     description: description,
                     categoryId: categoryIdToSend,
-                    status: status
+                    status: status,
+                    paymentMethodId: selectedPaymentMethodId
                 )
                 
                 // Save to SwiftData
@@ -338,6 +368,7 @@ struct TransactionFormView: View {
                     categoryId: response.categoryId,
                     status: response.status,
                     categoryName: response.categoryName,
+                    paymentMethodId: response.paymentMethodId,
                     recurringScheduleId: response.recurringScheduleId
                 )
                 modelContext.insert(newTransaction)
@@ -360,6 +391,37 @@ struct TransactionFormView: View {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.date(from: dateString)
+    }
+}
+
+// MARK: - Payment Method Picker Component
+
+struct PaymentMethodPickerView: View {
+    @Binding var selectedPaymentMethodId: String?
+    let availablePaymentMethods: [PaymentMethodResponse]
+    let isLoadingPaymentMethods: Bool
+    
+    var body: some View {
+        if isLoadingPaymentMethods {
+            HStack {
+                ProgressView()
+                    .scaleEffect(0.8)
+                Text("Loading payment methods...")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+        } else if availablePaymentMethods.isEmpty {
+            Text("No payment methods available")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        } else {
+            Picker("Select Payment Method", selection: $selectedPaymentMethodId) {
+                ForEach(availablePaymentMethods, id: \.id) { paymentMethod in
+                    Text(paymentMethod.name).tag(paymentMethod.id as String?)
+                }
+            }
+        }
     }
 }
 
@@ -453,6 +515,6 @@ struct CategoryAutocompleteView: View {
 
 #Preview {
     TransactionFormView(transaction: nil)
-        .modelContainer(for: [Transaction.self, Category.self], inMemory: true)
+        .modelContainer(for: [Transaction.self, Category.self, PaymentMethod.self], inMemory: true)
 }
 
