@@ -18,6 +18,7 @@ final class Transaction {
     var categoryId: String?
     var status: String?
     var categoryName: String?  // ADD THIS
+    var paymentMethodId: String?
     var recurringScheduleId: String?
     var createdAt: Date
     
@@ -35,6 +36,7 @@ final class Transaction {
         categoryId: String? = nil,
         status: String? = nil,
         categoryName: String? = nil,  // ADD THIS
+        paymentMethodId: String? = nil,
         recurringScheduleId: String? = nil,
         invoiceItems: [Transaction]? = nil
     ) {
@@ -46,6 +48,7 @@ final class Transaction {
         self.categoryId = categoryId
         self.status = status
         self.categoryName = categoryName  // ADD THIS
+        self.paymentMethodId = paymentMethodId
         self.recurringScheduleId = recurringScheduleId
         self.invoiceItems = invoiceItems
         self.createdAt = Date()
@@ -111,6 +114,7 @@ struct TransactionRequest: Codable {
         let description: String
         let categoryId: String?
         let status: String?
+        let paymentMethodId: String?
         
         enum CodingKeys: String, CodingKey {
             case amount
@@ -119,6 +123,7 @@ struct TransactionRequest: Codable {
             case description
             case categoryId = "category_id"
             case status
+            case paymentMethodId = "payment_method_id"
         }
     }
 }
@@ -132,6 +137,7 @@ struct TransactionResponse: Codable {
     let categoryId: String?
     let status: String?
     let categoryName: String?  // ADD THIS - replaces nested category object
+    let paymentMethodId: String?
     let recurringScheduleId: String?
     let invoiceItems: [TransactionResponse]?
     
@@ -144,6 +150,7 @@ struct TransactionResponse: Codable {
         case categoryId = "category_id"
         case status
         case categoryName = "category_name"  // ADD THIS
+        case paymentMethodId = "payment_method_id"
         case recurringScheduleId = "recurring_schedule_id"
         case invoiceItems = "invoice_items"
     }
@@ -163,6 +170,7 @@ struct TransactionResponse: Codable {
         categoryId = try container.decodeIfPresent(String.self, forKey: .categoryId)
         status = try container.decodeIfPresent(String.self, forKey: .status)
         categoryName = try container.decodeIfPresent(String.self, forKey: .categoryName)
+        paymentMethodId = try container.decodeIfPresent(String.self, forKey: .paymentMethodId)
         recurringScheduleId = try container.decodeIfPresent(String.self, forKey: .recurringScheduleId)
         invoiceItems = try container.decodeIfPresent([TransactionResponse].self, forKey: .invoiceItems)
     }

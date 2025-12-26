@@ -19,7 +19,8 @@ class TransactionService {
         dueDate: Date,
         description: String,
         categoryId: String?,
-        status: String?
+        status: String?,
+        paymentMethodId: String?
     ) async throws -> TransactionResponse {
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -31,7 +32,8 @@ class TransactionService {
                 dueDate: dateFormatter.string(from: dueDate),
                 description: description,
                 categoryId: categoryId,
-                status: status
+                status: status,
+                paymentMethodId: paymentMethodId
             )
         )
         
@@ -49,7 +51,8 @@ class TransactionService {
         dueDate: Date,
         description: String,
         categoryId: String?,
-        status: String?
+        status: String?,
+        paymentMethodId: String?
     ) async throws -> TransactionResponse {
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -61,7 +64,8 @@ class TransactionService {
                 dueDate: dateFormatter.string(from: dueDate),
                 description: description,
                 categoryId: categoryId,
-                status: status
+                status: status,
+                paymentMethodId: paymentMethodId
             )
         )
         
@@ -148,6 +152,7 @@ class TransactionService {
                     existingItem.categoryId = itemResponse.categoryId
                     existingItem.status = itemResponse.status
                     existingItem.categoryName = itemResponse.categoryName
+                    existingItem.paymentMethodId = itemResponse.paymentMethodId
                     existingItem.recurringScheduleId = itemResponse.recurringScheduleId
                     return existingItem
                 } else {
@@ -162,6 +167,7 @@ class TransactionService {
                         categoryId: itemResponse.categoryId,
                         status: itemResponse.status,
                         categoryName: itemResponse.categoryName,
+                        paymentMethodId: itemResponse.paymentMethodId,
                         recurringScheduleId: itemResponse.recurringScheduleId
                     )
                     modelContext.insert(item)
@@ -181,6 +187,7 @@ class TransactionService {
             categoryId: response.categoryId,
             status: response.status,
             categoryName: response.categoryName,
+            paymentMethodId: response.paymentMethodId,
             recurringScheduleId: response.recurringScheduleId,
             invoiceItems: invoiceItems
         )
@@ -229,6 +236,7 @@ class TransactionService {
                 existingTransaction.categoryId = response.categoryId
                 existingTransaction.status = response.status
                 existingTransaction.categoryName = response.categoryName
+                existingTransaction.paymentMethodId = response.paymentMethodId
                 existingTransaction.recurringScheduleId = response.recurringScheduleId
                 
                 // Update invoice items if present
@@ -244,6 +252,7 @@ class TransactionService {
                             existingItem.categoryId = itemResponse.categoryId
                             existingItem.status = itemResponse.status
                             existingItem.categoryName = itemResponse.categoryName
+                            existingItem.paymentMethodId = itemResponse.paymentMethodId
                             existingItem.recurringScheduleId = itemResponse.recurringScheduleId
                             existingItem.parentInvoice = existingTransaction
                             return existingItem
@@ -259,6 +268,7 @@ class TransactionService {
                                 categoryId: itemResponse.categoryId,
                                 status: itemResponse.status,
                                 categoryName: itemResponse.categoryName,
+                                paymentMethodId: itemResponse.paymentMethodId,
                                 recurringScheduleId: itemResponse.recurringScheduleId
                             )
                             item.parentInvoice = existingTransaction
