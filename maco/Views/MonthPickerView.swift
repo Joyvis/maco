@@ -11,7 +11,7 @@ struct MonthPickerView: View {
     @State private var selectedMonth: Int
     @State private var selectedYear: Int
     
-    let onMonthSelected: (Int, Int) -> Void
+    let onMonthSelected: (MonthYearFilter?) -> Void
     
     private let calendar = Calendar.current
     private let dateFormatter: DateFormatter = {
@@ -43,14 +43,14 @@ struct MonthPickerView: View {
         return months.reversed()
     }
     
-    init(initialMonth: Int? = nil, initialYear: Int? = nil, onMonthSelected: @escaping (Int, Int) -> Void) {
+    init(initialFilter: MonthYearFilter? = nil, onMonthSelected: @escaping (MonthYearFilter?) -> Void) {
         let calendar = Calendar.current
         let now = Date()
         let defaultMonth = calendar.component(.month, from: now)
         let defaultYear = calendar.component(.year, from: now)
         
-        _selectedMonth = State(initialValue: initialMonth ?? defaultMonth)
-        _selectedYear = State(initialValue: initialYear ?? defaultYear)
+        _selectedMonth = State(initialValue: initialFilter?.month ?? defaultMonth)
+        _selectedYear = State(initialValue: initialFilter?.year ?? defaultYear)
         self.onMonthSelected = onMonthSelected
     }
     
@@ -65,7 +65,8 @@ struct MonthPickerView: View {
                             action: {
                                 selectedMonth = monthData.month
                                 selectedYear = monthData.year
-                                onMonthSelected(monthData.month, monthData.year)
+                                let filter = MonthYearFilter(month: monthData.month, year: monthData.year)
+                                onMonthSelected(filter)
                                 // Scroll to selected month
                                 withAnimation {
                                     proxy.scrollTo(monthData.displayText, anchor: .center)
@@ -139,8 +140,10 @@ struct MonthButton: View {
 }
 
 #Preview {
-    MonthPickerView { month, year in
-        print("Selected month: \(month), year: \(year)")
+    MonthPickerView { filter in
+        if let filter = filter {
+            print("Selected month: \(filter.month), year: \(filter.year)")
+        }
     }
 }
 

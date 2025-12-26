@@ -21,15 +21,13 @@ struct TransactionsPageView: View {
     @State private var showDeleteAlert: Bool = false
     @State private var transactionToEdit: Transaction? = nil
     
-    // Month picker state
-    private let calendar = Calendar.current
-    @State private var selectedMonth: Int = {
+    // Filter state - using StateObject to observe @Published properties
+    @StateObject private var filters: FilterSet = {
+        let calendar = Calendar.current
         let now = Date()
-        return Calendar.current.component(.month, from: now)
-    }()
-    @State private var selectedYear: Int = {
-        let now = Date()
-        return Calendar.current.component(.year, from: now)
+        let month = calendar.component(.month, from: now)
+        let year = calendar.component(.year, from: now)
+        return FilterSet(monthYearFilter: MonthYearFilter(month: month, year: year))
     }()
 
     // Filter out invoice items (they're children of Invoice transactions)
@@ -117,14 +115,9 @@ struct TransactionsPageView: View {
             ),
             monthPicker: AnyView(
                 MonthPickerView(
-                    initialMonth: selectedMonth,
-                    initialYear: selectedYear,
-                    onMonthSelected: { month, year in
-                        selectedMonth = month
-                        selectedYear = year
-                        Task {
-                            await syncTransactions()
-                        }
+                    initialFilter: filters.monthYearFilter,
+                    onMonthSelected: { monthYearFilter in
+                        filters.monthYearFilter = monthYearFilter
                     }
                 )
             )
@@ -153,6 +146,11 @@ struct TransactionsPageView: View {
         .task {
             await syncTransactions()
         }
+        .onReceive(filters.$monthYearFilter) { _ in
+            Task {
+                await syncTransactions()
+            }
+        }
     }
 
     private func performDeleteTransaction(_ transaction: Transaction) {
@@ -180,10 +178,11 @@ struct TransactionsPageView: View {
         defer { isLoading = false }
         
         do {
+            // Only pass filters if they have at least one filter set
+            let activeFilters = filters.hasFilters() ? filters : nil
             try await TransactionService.shared.syncTransactions(
                 modelContext: modelContext,
-                month: selectedMonth,
-                year: selectedYear
+                filters: activeFilters
             )
         } catch {
             errorMessage = "Failed to sync transactions: \(error.localizedDescription)"

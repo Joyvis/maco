@@ -72,21 +72,12 @@ class TransactionService {
         )
     }
     
-    func fetchTransactions(month: Int? = nil, year: Int? = nil) async throws -> [TransactionResponse] {
-        // Build query parameters if month/year are provided
-        var queryParameters: [String: String]? = nil
-        if let month = month, let year = year {
-            queryParameters = [
-                "month": String(month),
-                "year": String(year)
-            ]
-        }
-        
+    func fetchTransactions(filters: FilterSet? = nil) async throws -> [TransactionResponse] {
         // Try to decode as wrapper response first, fallback to array
         do {
             let wrapperResponse = try await APIService.shared.get(
                 endpoint: "/transactions",
-                queryParameters: queryParameters,
+                filters: filters,
                 responseType: TransactionsListResponse.self
             )
             return wrapperResponse.transactions
@@ -94,7 +85,7 @@ class TransactionService {
             // Fallback to direct array response if wrapper decoding fails
             return try await APIService.shared.get(
                 endpoint: "/transactions",
-                queryParameters: queryParameters,
+                filters: filters,
                 responseType: [TransactionResponse].self
             )
         }
@@ -182,10 +173,9 @@ class TransactionService {
     /// Syncs transactions from API to SwiftData
     /// - Parameters:
     ///   - modelContext: SwiftData model context to insert/update transactions
-    ///   - month: Optional month (1-12) to filter transactions
-    ///   - year: Optional year to filter transactions
-    func syncTransactions(modelContext: ModelContext, month: Int? = nil, year: Int? = nil) async throws {
-        let responses = try await fetchTransactions(month: month, year: year)
+    ///   - filters: Optional FilterSet to filter transactions (e.g., month/year, category, payment method)
+    func syncTransactions(modelContext: ModelContext, filters: FilterSet? = nil) async throws {
+        let responses = try await fetchTransactions(filters: filters)
         // Fetch existing transactions to check for duplicates and updates
         let transactionDescriptor = FetchDescriptor<Transaction>()
         let existingTransactions = try modelContext.fetch(transactionDescriptor)
