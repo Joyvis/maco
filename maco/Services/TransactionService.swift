@@ -95,6 +95,31 @@ class TransactionService {
         try await APIService.shared.delete(endpoint: "/transactions/\(id)")
     }
     
+    // MARK: - Monthly Summary
+    
+    /// Summary data returned from monthly_summary endpoint
+    struct MonthlySummary {
+        let transactions: [TransactionResponse]
+        let total: String
+        let pending: String
+    }
+    
+    /// Fetches monthly summary from the API
+    /// - Parameter filters: Optional FilterSet to filter transactions (e.g., month/year, category, payment method)
+    /// - Returns: MonthlySummary containing transactions, total, and pending
+    func fetchMonthlySummary(filters: FilterSet? = nil) async throws -> MonthlySummary {
+        let response = try await APIService.shared.get(
+            endpoint: "/transactions/monthly_summary",
+            filters: filters,
+            responseType: TransactionsListResponse.self
+        )
+        return MonthlySummary(
+            transactions: response.transactions,
+            total: response.total,
+            pending: response.pending
+        )
+    }
+    
     // MARK: - Sync Methods
     
     /// Parses ISO8601 date string to Date
@@ -174,8 +199,10 @@ class TransactionService {
     /// - Parameters:
     ///   - modelContext: SwiftData model context to insert/update transactions
     ///   - filters: Optional FilterSet to filter transactions (e.g., month/year, category, payment method)
-    func syncTransactions(modelContext: ModelContext, filters: FilterSet? = nil) async throws {
-        let responses = try await fetchTransactions(filters: filters)
+    /// - Returns: MonthlySummary containing total and pending values from the API
+    func syncTransactions(modelContext: ModelContext, filters: FilterSet? = nil) async throws -> MonthlySummary {
+        let summary = try await fetchMonthlySummary(filters: filters)
+        let responses = summary.transactions
         // Fetch existing transactions to check for duplicates and updates
         let transactionDescriptor = FetchDescriptor<Transaction>()
         let existingTransactions = try modelContext.fetch(transactionDescriptor)
@@ -255,6 +282,8 @@ class TransactionService {
         
         // Save all changes (categories and transactions)
         try modelContext.save()
+        
+        return summary
     }
 }
 

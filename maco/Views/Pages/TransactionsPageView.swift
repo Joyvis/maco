@@ -20,6 +20,8 @@ struct TransactionsPageView: View {
     @State private var transactionToDelete: Transaction? = nil
     @State private var showDeleteAlert: Bool = false
     @State private var transactionToEdit: Transaction? = nil
+    @State private var apiTotal: String = "0.00"
+    @State private var apiPending: String = "0.00"
     
     // Filter state - using StateObject to observe @Published properties
     @StateObject private var filters: FilterSet = {
@@ -30,42 +32,33 @@ struct TransactionsPageView: View {
         return FilterSet(monthYearFilter: MonthYearFilter(month: month, year: year))
     }()
 
-    // Filter out invoice items (they're children of Invoice transactions)
+    // Filter out invoice items and filter by selected month/year
     private var topLevelTransactions: [Transaction] {
-        transactions.filter { $0.parentInvoice == nil }
+        let calendar = Calendar.current
+        let filtered = transactions.filter { transaction in
+            // Filter out invoice items
+            guard transaction.parentInvoice == nil else { return false }
+            
+            // If month/year filter is set, filter by dueDate
+            if let monthYearFilter = filters.monthYearFilter {
+                let transactionMonth = calendar.component(.month, from: transaction.dueDate)
+                let transactionYear = calendar.component(.year, from: transaction.dueDate)
+                return transactionMonth == monthYearFilter.month && transactionYear == monthYearFilter.year
+            }
+            
+            // If no filter, show all
+            return true
+        }
+        return filtered
     }
     
+    // Convert API string values to Double for TotalComponent
     private var pendingTotal: Double {
-        topLevelTransactions
-            .filter { ($0.status ?? "").lowercased() == "pending" }
-            .compactMap { transaction -> (Double, TransactionType)? in
-                guard let amount = Double(transaction.amount) else { return nil }
-                return (amount, transaction.transactionType)
-            }
-            .reduce(0) { result, item in
-                switch item.1 {
-                case .income:
-                    return result + item.0
-                case .expense, .invoice:
-                    return result - item.0
-                }
-            }
+        Double(apiPending) ?? 0.0
     }
     
     private var totalAmount: Double {
-        topLevelTransactions
-            .compactMap { transaction -> (Double, TransactionType)? in
-                guard let amount = Double(transaction.amount) else { return nil }
-                return (amount, transaction.transactionType)
-            }
-            .reduce(0) { result, item in
-                switch item.1 {
-                case .income:
-                    return result + item.0
-                case .expense, .invoice:
-                    return result - item.0
-                }
-            }
+        Double(apiTotal) ?? 0.0
     }
     
     var body: some View {
@@ -101,6 +94,7 @@ struct TransactionsPageView: View {
                         )
                     }
                 }
+                .id("\(filters.monthYearFilter?.month ?? 0)-\(filters.monthYearFilter?.year ?? 0)")
                 .refreshable {
                     await syncTransactions()
                 }
@@ -180,10 +174,13 @@ struct TransactionsPageView: View {
         do {
             // Only pass filters if they have at least one filter set
             let activeFilters = filters.hasFilters() ? filters : nil
-            try await TransactionService.shared.syncTransactions(
+            let summary = try await TransactionService.shared.syncTransactions(
                 modelContext: modelContext,
                 filters: activeFilters
             )
+            // Update state with API-provided totals
+            apiTotal = summary.total
+            apiPending = summary.pending
         } catch {
             errorMessage = "Failed to sync transactions: \(error.localizedDescription)"
         }
