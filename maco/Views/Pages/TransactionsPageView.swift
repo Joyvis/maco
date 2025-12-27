@@ -52,6 +52,19 @@ struct TransactionsPageView: View {
         return filtered
     }
     
+    // Group transactions by created_at date (calendar day)
+    private var groupedTransactions: [Date: [Transaction]] {
+        let calendar = Calendar.current
+        return Dictionary(grouping: topLevelTransactions) { transaction in
+            calendar.startOfDay(for: transaction.createdAt)
+        }
+    }
+    
+    // Sorted date keys (most recent first)
+    private var sortedDateKeys: [Date] {
+        groupedTransactions.keys.sorted(by: >)
+    }
+    
     // Convert API string values to Double for TotalComponent
     private var pendingTotal: Double {
         Double(apiPending) ?? 0.0
@@ -67,22 +80,28 @@ struct TransactionsPageView: View {
             isMenuOpen: $isMenuOpen,
             content: {
                 List {
-                    ForEach(topLevelTransactions) { transaction in
-                        TransactionRowView(
-                            transaction: transaction,
-                            categories: categories,
-                            onTap: { tappedTransaction in
-                                transactionToEdit = tappedTransaction
-                                showTransactionForm = true
+                    ForEach(sortedDateKeys, id: \.self) { date in
+                        Section {
+                            ForEach(groupedTransactions[date] ?? []) { transaction in
+                                TransactionRowView(
+                                    transaction: transaction,
+                                    categories: categories,
+                                    onTap: { tappedTransaction in
+                                        transactionToEdit = tappedTransaction
+                                        showTransactionForm = true
+                                    }
+                                )
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        transactionToDelete = transaction
+                                        showDeleteAlert = true
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                             }
-                        )
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                transactionToDelete = transaction
-                                showDeleteAlert = true
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                        } header: {
+                            DateSectionHeader(date: date)
                         }
                     }
                     

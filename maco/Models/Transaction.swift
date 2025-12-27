@@ -21,6 +21,7 @@ final class Transaction {
     var paymentMethodId: String?
     var recurringScheduleId: String?
     var createdAt: Date
+    var paidAt: Date?
     
     @Relationship(deleteRule: .cascade, inverse: \Transaction.parentInvoice)
     var invoiceItems: [Transaction]?
@@ -38,7 +39,8 @@ final class Transaction {
         categoryName: String? = nil,  // ADD THIS
         paymentMethodId: String? = nil,
         recurringScheduleId: String? = nil,
-        invoiceItems: [Transaction]? = nil
+        invoiceItems: [Transaction]? = nil,
+        paidAt: Date? = nil
     ) {
         self.id = id
         self.amount = amount
@@ -52,6 +54,7 @@ final class Transaction {
         self.recurringScheduleId = recurringScheduleId
         self.invoiceItems = invoiceItems
         self.createdAt = Date()
+        self.paidAt = paidAt
     }
 
     var transactionType: TransactionType {
@@ -140,6 +143,7 @@ struct TransactionResponse: Codable {
     let paymentMethodId: String?
     let recurringScheduleId: String?
     let invoiceItems: [TransactionResponse]?
+    let paidAt: String?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -153,6 +157,7 @@ struct TransactionResponse: Codable {
         case paymentMethodId = "payment_method_id"
         case recurringScheduleId = "recurring_schedule_id"
         case invoiceItems = "invoice_items"
+        case paidAt = "paid_at"
     }
 
     init(from decoder: Decoder) throws {
@@ -173,6 +178,7 @@ struct TransactionResponse: Codable {
         paymentMethodId = try container.decodeIfPresent(String.self, forKey: .paymentMethodId)
         recurringScheduleId = try container.decodeIfPresent(String.self, forKey: .recurringScheduleId)
         invoiceItems = try container.decodeIfPresent([TransactionResponse].self, forKey: .invoiceItems)
+        paidAt = try container.decodeIfPresent(String.self, forKey: .paidAt)
     }
 }
 
