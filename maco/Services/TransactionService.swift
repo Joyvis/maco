@@ -154,6 +154,7 @@ class TransactionService {
                     existingItem.categoryName = itemResponse.categoryName
                     existingItem.paymentMethodId = itemResponse.paymentMethodId
                     existingItem.recurringScheduleId = itemResponse.recurringScheduleId
+                    existingItem.paidAt = parseDate(itemResponse.paidAt ?? "")
                     return existingItem
                 } else {
                     // Create new invoice item
@@ -168,7 +169,8 @@ class TransactionService {
                         status: itemResponse.status,
                         categoryName: itemResponse.categoryName,
                         paymentMethodId: itemResponse.paymentMethodId,
-                        recurringScheduleId: itemResponse.recurringScheduleId
+                        recurringScheduleId: itemResponse.recurringScheduleId,
+                        paidAt: parseDate(itemResponse.paidAt ?? "")
                     )
                     modelContext.insert(item)
                     return item
@@ -189,7 +191,8 @@ class TransactionService {
             categoryName: response.categoryName,
             paymentMethodId: response.paymentMethodId,
             recurringScheduleId: response.recurringScheduleId,
-            invoiceItems: invoiceItems
+            invoiceItems: invoiceItems,
+            paidAt: parseDate(response.paidAt ?? "")
         )
         
         // Set parent invoice for invoice items
@@ -238,6 +241,7 @@ class TransactionService {
                 existingTransaction.categoryName = response.categoryName
                 existingTransaction.paymentMethodId = response.paymentMethodId
                 existingTransaction.recurringScheduleId = response.recurringScheduleId
+                existingTransaction.paidAt = parseDate(response.paidAt ?? "")
                 
                 // Update invoice items if present
                 if let items = response.invoiceItems, !items.isEmpty {
@@ -254,6 +258,7 @@ class TransactionService {
                             existingItem.categoryName = itemResponse.categoryName
                             existingItem.paymentMethodId = itemResponse.paymentMethodId
                             existingItem.recurringScheduleId = itemResponse.recurringScheduleId
+                            existingItem.paidAt = parseDate(itemResponse.paidAt ?? "")
                             existingItem.parentInvoice = existingTransaction
                             return existingItem
                         } else {
@@ -269,7 +274,8 @@ class TransactionService {
                                 status: itemResponse.status,
                                 categoryName: itemResponse.categoryName,
                                 paymentMethodId: itemResponse.paymentMethodId,
-                                recurringScheduleId: itemResponse.recurringScheduleId
+                                recurringScheduleId: itemResponse.recurringScheduleId,
+                                paidAt: parseDate(itemResponse.paidAt ?? "")
                             )
                             item.parentInvoice = existingTransaction
                             modelContext.insert(item)

@@ -55,33 +55,42 @@ struct TransactionRowView: View {
 
                 HStack {
                     if transaction.transactionType != .income {
-                        if !transaction.displayStatus.isEmpty {
-                            Text(transaction.displayStatus.uppercased())
-                                .font(.caption2)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(transaction.statusColor)
-                                .cornerRadius(4)
+                        // Status badge with smart text
+                        Text(transaction.badgeText)
+                            .font(.caption2)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(transaction.badgeColor)
+                            .cornerRadius(4)
+                        
+                        // Only show separator if there's a category to display
+                        if (transaction.transactionType == .expense || transaction.transactionType == .invoice) && !categoryName.isEmpty {
+                            Text("•")
+                                .foregroundColor(.secondary)
                         }
                     }
 
                     if transaction.transactionType == .expense || transaction.transactionType == .invoice {
-                        if !transaction.displayStatus.isEmpty && transaction.transactionType == .expense {
-                            Text("•")
+                        if !categoryName.isEmpty {
+                            Text(categoryName)
+                                .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-
-                        Text(categoryName)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
 
                     Spacer()
 
-                    Text(transaction.dueDate, format: .dateTime.month().day().year())
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    // Due date label (always shown for expenses, received date for income)
+                    if transaction.transactionType == .income {
+                        Text("Received: \(transaction.formattedDueDate)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("Due: \(transaction.formattedDueDate)")
+                            .font(.caption)
+                            .foregroundColor(transaction.isOverdue ? .red : .secondary)
+                    }
                 }
             }
             .padding(.vertical, 4)
