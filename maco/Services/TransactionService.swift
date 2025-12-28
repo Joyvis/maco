@@ -153,6 +153,7 @@ class TransactionService {
                     existingItem.status = itemResponse.status
                     existingItem.categoryName = itemResponse.categoryName
                     existingItem.paymentMethodId = itemResponse.paymentMethodId
+                    existingItem.paymentMethodName = itemResponse.paymentMethodName
                     existingItem.recurringScheduleId = itemResponse.recurringScheduleId
                     existingItem.paidAt = parseDate(itemResponse.paidAt ?? "")
                     return existingItem
@@ -169,6 +170,7 @@ class TransactionService {
                         status: itemResponse.status,
                         categoryName: itemResponse.categoryName,
                         paymentMethodId: itemResponse.paymentMethodId,
+                        paymentMethodName: itemResponse.paymentMethodName,
                         recurringScheduleId: itemResponse.recurringScheduleId,
                         paidAt: parseDate(itemResponse.paidAt ?? "")
                     )
@@ -190,6 +192,7 @@ class TransactionService {
             status: response.status,
             categoryName: response.categoryName,
             paymentMethodId: response.paymentMethodId,
+            paymentMethodName: response.paymentMethodName,
             recurringScheduleId: response.recurringScheduleId,
             invoiceItems: invoiceItems,
             paidAt: parseDate(response.paidAt ?? "")
@@ -213,9 +216,22 @@ class TransactionService {
     func syncTransactions(modelContext: ModelContext, filters: FilterSet? = nil) async throws -> MonthlySummary {
         let summary = try await fetchMonthlySummary(filters: filters)
         let responses = summary.transactions
+        
+        // Collect all transaction IDs from API response (including invoice items)
+        var apiTransactionIds = Set<String>()
+        for response in responses {
+            apiTransactionIds.insert(response.id)
+            if let invoiceItems = response.invoiceItems {
+                for item in invoiceItems {
+                    apiTransactionIds.insert(item.id)
+                }
+            }
+        }
+        
         // Fetch existing transactions to check for duplicates and updates
         let transactionDescriptor = FetchDescriptor<Transaction>()
         let existingTransactions = try modelContext.fetch(transactionDescriptor)
+        
         // Use reduce to handle potential duplicate IDs gracefully (keep the first occurrence)
         let existingTransactionsById = existingTransactions.reduce(into: [String: Transaction]()) { dict, transaction in
             if let id = transaction.id {
@@ -224,6 +240,41 @@ class TransactionService {
                     dict[id] = transaction
                 }
             }
+        }
+        
+        // Clean up: Delete local transactions that have IDs but are not in the API response
+        // Note: When filters are applied, only transactions matching the filter scope are cleaned up.
+        // To clean up ALL stale data, sync without filters.
+        let calendar = Calendar.current
+        var transactionsToDelete: [Transaction] = []
+        
+        for transaction in existingTransactions {
+            // Only delete transactions that have IDs (skip local-only transactions)
+            guard let transactionId = transaction.id else { continue }
+            
+            // Skip if transaction is in the API response
+            if apiTransactionIds.contains(transactionId) { continue }
+            
+            // If filters are applied, only delete transactions that match the filter scope
+            if let monthYearFilter = filters?.monthYearFilter {
+                let isPaid = transaction.status?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "paid"
+                let transactionDate = isPaid && transaction.paidAt != nil ? transaction.paidAt! : transaction.dueDate
+                let transactionMonth = calendar.component(.month, from: transactionDate)
+                let transactionYear = calendar.component(.year, from: transactionDate)
+                
+                // Only delete if transaction matches the filter
+                if transactionMonth == monthYearFilter.month && transactionYear == monthYearFilter.year {
+                    transactionsToDelete.append(transaction)
+                }
+            } else {
+                // No filter: delete all transactions not in API response
+                transactionsToDelete.append(transaction)
+            }
+        }
+        
+        // Delete transactions (cascade delete will handle invoice items automatically)
+        for transaction in transactionsToDelete {
+            modelContext.delete(transaction)
         }
 
         // Process each transaction response
@@ -240,6 +291,7 @@ class TransactionService {
                 existingTransaction.status = response.status
                 existingTransaction.categoryName = response.categoryName
                 existingTransaction.paymentMethodId = response.paymentMethodId
+                existingTransaction.paymentMethodName = response.paymentMethodName
                 existingTransaction.recurringScheduleId = response.recurringScheduleId
                 existingTransaction.paidAt = parseDate(response.paidAt ?? "")
                 
@@ -257,6 +309,7 @@ class TransactionService {
                             existingItem.status = itemResponse.status
                             existingItem.categoryName = itemResponse.categoryName
                             existingItem.paymentMethodId = itemResponse.paymentMethodId
+                            existingItem.paymentMethodName = itemResponse.paymentMethodName
                             existingItem.recurringScheduleId = itemResponse.recurringScheduleId
                             existingItem.paidAt = parseDate(itemResponse.paidAt ?? "")
                             existingItem.parentInvoice = existingTransaction
@@ -274,6 +327,7 @@ class TransactionService {
                                 status: itemResponse.status,
                                 categoryName: itemResponse.categoryName,
                                 paymentMethodId: itemResponse.paymentMethodId,
+                                paymentMethodName: itemResponse.paymentMethodName,
                                 recurringScheduleId: itemResponse.recurringScheduleId,
                                 paidAt: parseDate(itemResponse.paidAt ?? "")
                             )

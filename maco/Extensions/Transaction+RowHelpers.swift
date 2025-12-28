@@ -41,6 +41,12 @@ extension Transaction {
         return self.categoryName ?? ""
     }
     
+    /// Checks if transaction is paid (handles whitespace and case)
+    var isPaid: Bool {
+        guard let status = self.status else { return false }
+        return status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "paid"
+    }
+    
     /// Returns formatted date for section headers ("Today", "Yesterday", or "Dec 18, 2025")
     var formattedCreatedDate: String {
         let calendar = Calendar.current
@@ -74,21 +80,17 @@ extension Transaction {
     
     /// Checks if transaction is overdue (due_date < today and status != "paid")
     var isOverdue: Bool {
-        guard self.status?.lowercased() != "paid" else { return false }
+        guard !isPaid else { return false }
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         let dueDate = calendar.startOfDay(for: self.dueDate)
         return dueDate < today
     }
     
-    /// Returns badge text based on transaction status
-    var badgeText: String {
-        if self.status?.lowercased() == "paid" {
-            if let paidAt = self.paidAt {
-                return "PAID at \(formattedPaidDate)"
-            } else {
-                return "PAID"
-            }
+    /// Returns badge text based on transaction status (only for non-paid transactions)
+    var badgeText: String? {
+        if isPaid {
+            return nil
         } else if isOverdue {
             return "OVERDUE"
         } else {
@@ -96,16 +98,20 @@ extension Transaction {
         }
     }
     
-    /// Returns badge color based on transaction status
-    var badgeColor: Color {
-        if self.status?.lowercased() == "paid" {
-            // Use a darker green for better contrast with white text
-            return Color(red: 0.0, green: 0.6, blue: 0.0)
+    /// Returns badge color based on transaction status (only for non-paid transactions)
+    var badgeColor: Color? {
+        if isPaid {
+            return nil
         } else if isOverdue {
             return .red
         } else {
             return .blue
         }
+    }
+    
+    /// Returns whether a badge should be displayed for this transaction
+    var shouldShowBadge: Bool {
+        return badgeText != nil
     }
 }
 
