@@ -121,6 +121,7 @@ struct TransactionRequest: Codable {
         let categoryId: String?
         let status: String?
         let paymentMethodId: String?
+        let paidAt: String?
         
         enum CodingKeys: String, CodingKey {
             case amount
@@ -130,6 +131,7 @@ struct TransactionRequest: Codable {
             case categoryId = "category_id"
             case status
             case paymentMethodId = "payment_method_id"
+            case paidAt = "paid_at"
         }
     }
 }

@@ -33,7 +33,8 @@ class TransactionService {
                 description: description,
                 categoryId: categoryId,
                 status: status,
-                paymentMethodId: paymentMethodId
+                paymentMethodId: paymentMethodId,
+                paidAt: nil
             )
         )
         
@@ -52,7 +53,8 @@ class TransactionService {
         description: String,
         categoryId: String?,
         status: String?,
-        paymentMethodId: String?
+        paymentMethodId: String?,
+        paidAt: Date?
     ) async throws -> TransactionResponse {
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -65,7 +67,8 @@ class TransactionService {
                 description: description,
                 categoryId: categoryId,
                 status: status,
-                paymentMethodId: paymentMethodId
+                paymentMethodId: paymentMethodId,
+                paidAt: paidAt != nil ? dateFormatter.string(from: paidAt!) : nil
             )
         )
         
@@ -127,10 +130,23 @@ class TransactionService {
     // MARK: - Sync Methods
     
     /// Parses ISO8601 date string to Date
+    /// Handles both date-only format (YYYY-MM-DD) and full datetime format
     private func parseDate(_ dateString: String) -> Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter.date(from: dateString)
+        // First try parsing as date-only format (YYYY-MM-DD)
+        // Use local timezone so "2025-12-25" means Dec 25 in user's timezone
+        let dateOnlyFormatter = DateFormatter()
+        dateOnlyFormatter.dateFormat = "yyyy-MM-dd"
+        dateOnlyFormatter.timeZone = TimeZone.current
+        dateOnlyFormatter.locale = Locale(identifier: "en_US_POSIX")
+        
+        if let date = dateOnlyFormatter.date(from: dateString) {
+            return date
+        }
+        
+        // Fall back to ISO8601 datetime format
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return isoFormatter.date(from: dateString)
     }
 
     /// Converts a TransactionResponse to a Transaction, including invoice items

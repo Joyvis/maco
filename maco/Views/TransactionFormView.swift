@@ -329,7 +329,8 @@ struct TransactionFormView: View {
                     description: description,
                     categoryId: categoryIdToSend,
                     status: status,
-                    paymentMethodId: selectedPaymentMethodId
+                    paymentMethodId: selectedPaymentMethodId,
+                    paidAt: existingTransaction.paidAt
                 )
                 
                 // Update SwiftData model
@@ -388,9 +389,21 @@ struct TransactionFormView: View {
     }
     
     private func parseDate(_ dateString: String) -> Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter.date(from: dateString)
+        // First try parsing as date-only format (YYYY-MM-DD)
+        // Use local timezone so "2025-12-25" means Dec 25 in user's timezone
+        let dateOnlyFormatter = DateFormatter()
+        dateOnlyFormatter.dateFormat = "yyyy-MM-dd"
+        dateOnlyFormatter.timeZone = TimeZone.current
+        dateOnlyFormatter.locale = Locale(identifier: "en_US_POSIX")
+        
+        if let date = dateOnlyFormatter.date(from: dateString) {
+            return date
+        }
+        
+        // Fall back to ISO8601 datetime format
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return isoFormatter.date(from: dateString)
     }
 }
 

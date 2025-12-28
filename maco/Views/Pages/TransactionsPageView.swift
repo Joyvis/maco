@@ -22,6 +22,8 @@ struct TransactionsPageView: View {
     @State private var transactionToEdit: Transaction? = nil
     @State private var apiTotal: String = "0.00"
     @State private var apiPending: String = "0.00"
+    @State private var showMarkAsPaidView: Bool = false
+    @State private var transactionToMarkAsPaid: Transaction? = nil
     
     // Filter state - using StateObject to observe @Published properties
     @StateObject private var filters: FilterSet = {
@@ -109,6 +111,18 @@ struct TransactionsPageView: View {
                                         showTransactionForm = true
                                     }
                                 )
+                                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                    // Only show mark as paid for expense and invoice transactions
+                                    if transaction.transactionType == .expense || transaction.transactionType == .invoice {
+                                        Button {
+                                            transactionToMarkAsPaid = transaction
+                                            showMarkAsPaidView = true
+                                        } label: {
+                                            Label("Mark as Paid", systemImage: "checkmark.circle.fill")
+                                        }
+                                        .tint(.green)
+                                    }
+                                }
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
                                         transactionToDelete = transaction
@@ -195,6 +209,23 @@ struct TransactionsPageView: View {
                 transactionToEdit = nil
             }
         }
+        .sheet(isPresented: $showMarkAsPaidView) {
+            if let transaction = transactionToMarkAsPaid {
+                MarkAsPaidView(
+                    transaction: transaction,
+                    onMarkAsPaid: { paidAt in
+                        Task {
+                            await performMarkAsPaid(transaction: transaction, paidAt: paidAt)
+                        }
+                    }
+                )
+            }
+        }
+        .onChange(of: showMarkAsPaidView) { oldValue, newValue in
+            if !newValue {
+                transactionToMarkAsPaid = nil
+            }
+        }
         .alert("Delete Transaction", isPresented: $showDeleteAlert) {
             Button("Cancel", role: .cancel) {
                 transactionToDelete = nil
@@ -235,6 +266,73 @@ struct TransactionsPageView: View {
                 modelContext.delete(transaction)
             }
         }
+    }
+    
+    private func performMarkAsPaid(transaction: Transaction, paidAt: Date?) async {
+        guard let transactionId = transaction.id else {
+            errorMessage = "Cannot update transaction: missing ID"
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        
+        do {
+            // Update status based on paidAt: "paid" if paidAt is set, otherwise keep current status or set to nil
+            let newStatus = paidAt != nil ? "paid" : (transaction.status == "paid" ? nil : transaction.status)
+            
+            // Update transaction via API
+            let response = try await TransactionService.shared.updateTransaction(
+                id: transactionId,
+                amount: transaction.amount,
+                type: transaction.transactionType,
+                dueDate: transaction.dueDate,
+                description: transaction.transactionDescription,
+                categoryId: transaction.categoryId,
+                status: newStatus,
+                paymentMethodId: transaction.paymentMethodId,
+                paidAt: paidAt
+            )
+            
+            // Update local SwiftData transaction
+            transaction.amount = response.amount
+            transaction.transactionType = TransactionType(rawValue: response.type.lowercased()) ?? .expense
+            transaction.dueDate = parseDate(response.dueDate) ?? transaction.dueDate
+            transaction.transactionDescription = response.description
+            transaction.categoryId = response.categoryId
+            transaction.status = response.status
+            transaction.categoryName = response.categoryName
+            transaction.paymentMethodId = response.paymentMethodId
+            transaction.paymentMethodName = response.paymentMethodName
+            transaction.recurringScheduleId = response.recurringScheduleId
+            transaction.paidAt = parseDate(response.paidAt ?? "")
+            
+            try modelContext.save()
+            
+            // Sync transactions to refresh UI and get updated totals
+            await syncTransactions()
+        } catch {
+            errorMessage = "Failed to update transaction: \(error.localizedDescription)"
+        }
+    }
+    
+    private func parseDate(_ dateString: String) -> Date? {
+        // First try parsing as date-only format (YYYY-MM-DD)
+        // Use local timezone so "2025-12-25" means Dec 25 in user's timezone
+        let dateOnlyFormatter = DateFormatter()
+        dateOnlyFormatter.dateFormat = "yyyy-MM-dd"
+        dateOnlyFormatter.timeZone = TimeZone.current
+        dateOnlyFormatter.locale = Locale(identifier: "en_US_POSIX")
+        
+        if let date = dateOnlyFormatter.date(from: dateString) {
+            return date
+        }
+        
+        // Fall back to ISO8601 datetime format
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return isoFormatter.date(from: dateString)
     }
     
     private func syncTransactions() async {
