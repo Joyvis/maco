@@ -157,6 +157,18 @@ struct TransactionsPageView: View {
                                         showTransactionForm = true
                                     }
                                 )
+                                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                    // Only show mark as unpaid for expense and invoice transactions
+                                    if transaction.transactionType == .expense || transaction.transactionType == .invoice {
+                                        Button {
+                                            transactionToMarkAsPaid = transaction
+                                            showMarkAsPaidView = true
+                                        } label: {
+                                            Label("Mark as Unpaid", systemImage: "xmark.circle.fill")
+                                        }
+                                        .tint(.orange)
+                                    }
+                                }
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
                                         transactionToDelete = transaction

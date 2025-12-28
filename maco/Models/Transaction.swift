@@ -133,6 +133,19 @@ struct TransactionRequest: Codable {
             case paymentMethodId = "payment_method_id"
             case paidAt = "paid_at"
         }
+        
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(amount, forKey: .amount)
+            try container.encode(type, forKey: .type)
+            try container.encode(dueDate, forKey: .dueDate)
+            try container.encode(description, forKey: .description)
+            try container.encodeIfPresent(categoryId, forKey: .categoryId)
+            try container.encodeIfPresent(status, forKey: .status)
+            try container.encodeIfPresent(paymentMethodId, forKey: .paymentMethodId)
+            // Always encode paid_at, even if nil (to send null explicitly)
+            try container.encode(paidAt, forKey: .paidAt)
+        }
     }
 }
 
