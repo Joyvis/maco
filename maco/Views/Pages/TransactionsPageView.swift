@@ -39,11 +39,17 @@ struct TransactionsPageView: View {
             // Filter out invoice items
             guard transaction.parentInvoice == nil else { return false }
             
-            // If month/year filter is set, filter by dueDate
+            // If month/year filter is set, filter by dueDate for unpaid, paidAt for paid
             if let monthYearFilter = filters.monthYearFilter {
-                let transactionMonth = calendar.component(.month, from: transaction.dueDate)
-                let transactionYear = calendar.component(.year, from: transaction.dueDate)
-                return transactionMonth == monthYearFilter.month && transactionYear == monthYearFilter.year
+                if transaction.isPaid, let paidAt = transaction.paidAt {
+                    let transactionMonth = calendar.component(.month, from: paidAt)
+                    let transactionYear = calendar.component(.year, from: paidAt)
+                    return transactionMonth == monthYearFilter.month && transactionYear == monthYearFilter.year
+                } else {
+                    let transactionMonth = calendar.component(.month, from: transaction.dueDate)
+                    let transactionYear = calendar.component(.year, from: transaction.dueDate)
+                    return transactionMonth == monthYearFilter.month && transactionYear == monthYearFilter.year
+                }
             }
             
             // If no filter, show all
@@ -52,17 +58,28 @@ struct TransactionsPageView: View {
         return filtered
     }
     
-    // Group transactions by created_at date (calendar day)
-    private var groupedTransactions: [Date: [Transaction]] {
+    // Unpaid transactions (pending or overdue) - sorted by dueDate ascending
+    private var unpaidTransactions: [Transaction] {
+        let unpaid = topLevelTransactions.filter { transaction in
+            !transaction.isPaid
+        }
+        return unpaid.sorted { $0.dueDate < $1.dueDate }
+    }
+    
+    // Paid transactions grouped by paidAt date
+    private var paidTransactionsByDate: [Date: [Transaction]] {
         let calendar = Calendar.current
-        return Dictionary(grouping: topLevelTransactions) { transaction in
-            calendar.startOfDay(for: transaction.createdAt)
+        let paid = topLevelTransactions.filter { transaction in
+            transaction.isPaid && transaction.paidAt != nil
+        }
+        return Dictionary(grouping: paid) { transaction in
+            calendar.startOfDay(for: transaction.paidAt!)
         }
     }
     
-    // Sorted date keys (most recent first)
-    private var sortedDateKeys: [Date] {
-        groupedTransactions.keys.sorted(by: >)
+    // Sorted date keys for paid transactions (most recent first - today to past)
+    private var sortedPaidDateKeys: [Date] {
+        paidTransactionsByDate.keys.sorted(by: >)
     }
     
     // Convert API string values to Double for TotalComponent
@@ -80,9 +97,44 @@ struct TransactionsPageView: View {
             isMenuOpen: $isMenuOpen,
             content: {
                 List {
-                    ForEach(sortedDateKeys, id: \.self) { date in
+                    // Pending Transactions section (unpaid transactions)
+                    if !unpaidTransactions.isEmpty {
                         Section {
-                            ForEach(groupedTransactions[date] ?? []) { transaction in
+                            ForEach(unpaidTransactions) { transaction in
+                                TransactionRowView(
+                                    transaction: transaction,
+                                    categories: categories,
+                                    onTap: { tappedTransaction in
+                                        transactionToEdit = tappedTransaction
+                                        showTransactionForm = true
+                                    }
+                                )
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        transactionToDelete = transaction
+                                        showDeleteAlert = true
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                            }
+                        } header: {
+                            HStack {
+                                Text("Pending Transactions")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 16)
+                            .background(Color(.systemGroupedBackground))
+                        }
+                    }
+                    
+                    // Paid transactions grouped by paidAt date
+                    ForEach(sortedPaidDateKeys, id: \.self) { date in
+                        Section {
+                            ForEach(paidTransactionsByDate[date] ?? []) { transaction in
                                 TransactionRowView(
                                     transaction: transaction,
                                     categories: categories,

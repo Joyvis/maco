@@ -19,6 +19,7 @@ final class Transaction {
     var status: String?
     var categoryName: String?  // ADD THIS
     var paymentMethodId: String?
+    var paymentMethodName: String?
     var recurringScheduleId: String?
     var createdAt: Date
     var paidAt: Date?
@@ -38,6 +39,7 @@ final class Transaction {
         status: String? = nil,
         categoryName: String? = nil,  // ADD THIS
         paymentMethodId: String? = nil,
+        paymentMethodName: String? = nil,
         recurringScheduleId: String? = nil,
         invoiceItems: [Transaction]? = nil,
         paidAt: Date? = nil
@@ -51,6 +53,7 @@ final class Transaction {
         self.status = status
         self.categoryName = categoryName  // ADD THIS
         self.paymentMethodId = paymentMethodId
+        self.paymentMethodName = paymentMethodName
         self.recurringScheduleId = recurringScheduleId
         self.invoiceItems = invoiceItems
         self.createdAt = Date()
@@ -141,6 +144,7 @@ struct TransactionResponse: Codable {
     let status: String?
     let categoryName: String?  // ADD THIS - replaces nested category object
     let paymentMethodId: String?
+    let paymentMethodName: String?
     let recurringScheduleId: String?
     let invoiceItems: [TransactionResponse]?
     let paidAt: String?
@@ -155,6 +159,7 @@ struct TransactionResponse: Codable {
         case status
         case categoryName = "category_name"  // ADD THIS
         case paymentMethodId = "payment_method_id"
+        case paymentMethodName = "payment_method_name"
         case recurringScheduleId = "recurring_schedule_id"
         case invoiceItems = "invoice_items"
         case paidAt = "paid_at"
@@ -176,6 +181,7 @@ struct TransactionResponse: Codable {
         status = try container.decodeIfPresent(String.self, forKey: .status)
         categoryName = try container.decodeIfPresent(String.self, forKey: .categoryName)
         paymentMethodId = try container.decodeIfPresent(String.self, forKey: .paymentMethodId)
+        paymentMethodName = try container.decodeIfPresent(String.self, forKey: .paymentMethodName)
         recurringScheduleId = try container.decodeIfPresent(String.self, forKey: .recurringScheduleId)
         invoiceItems = try container.decodeIfPresent([TransactionResponse].self, forKey: .invoiceItems)
         paidAt = try container.decodeIfPresent(String.self, forKey: .paidAt)

@@ -30,6 +30,10 @@ struct TransactionRowView: View {
             return transaction.displayCategoryName
         }
     }
+    
+    private var paymentMethodName: String {
+        return transaction.paymentMethodName ?? ""
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -55,28 +59,43 @@ struct TransactionRowView: View {
 
                 HStack {
                     if transaction.transactionType != .income {
-                        // Status badge with smart text
-                        Text(transaction.badgeText)
-                            .font(.caption2)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(transaction.badgeColor)
-                            .cornerRadius(4)
+                        // Status badge - only show for non-paid transactions
+                        if transaction.shouldShowBadge, let badgeText = transaction.badgeText, let badgeColor = transaction.badgeColor {
+                            Text(badgeText)
+                                .font(.caption2)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(badgeColor)
+                                .cornerRadius(4)
+                            
+                            // Show separator after badge if there's category or payment method to display
+                            if ((transaction.transactionType == .expense || transaction.transactionType == .invoice) && !categoryName.isEmpty) || !paymentMethodName.isEmpty {
+                                Text("•")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        // Note: No separator shown when badge is not displayed (paid transactions)
+                    }
+
+                    // Category name for expenses and invoices
+                    if (transaction.transactionType == .expense || transaction.transactionType == .invoice) && !categoryName.isEmpty {
+                        Text(categoryName)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                         
-                        // Only show separator if there's a category to display
-                        if (transaction.transactionType == .expense || transaction.transactionType == .invoice) && !categoryName.isEmpty {
+                        // Show separator between category and payment method if both exist
+                        if !paymentMethodName.isEmpty {
                             Text("•")
                                 .foregroundColor(.secondary)
                         }
                     }
-
-                    if transaction.transactionType == .expense || transaction.transactionType == .invoice {
-                        if !categoryName.isEmpty {
-                            Text(categoryName)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
+                    
+                    // Payment method for all transactions
+                    if !paymentMethodName.isEmpty {
+                        Text(paymentMethodName)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
 
                     Spacer()
