@@ -68,6 +68,24 @@ struct PaymentMethodRequest: Codable {
     }
 }
 
+struct PaymentMethodUpdateRequest: Codable {
+    let paymentMethod: PaymentMethodUpdateAttributes
+    
+    enum CodingKeys: String, CodingKey {
+        case paymentMethod = "payment_method"
+    }
+    
+    struct PaymentMethodUpdateAttributes: Codable {
+        let name: String
+        let type: String
+        
+        enum CodingKeys: String, CodingKey {
+            case name
+            case type
+        }
+    }
+}
+
 struct PaymentMethodResponse: Codable {
     let id: String
     let name: String

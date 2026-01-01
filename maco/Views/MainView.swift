@@ -57,10 +57,18 @@ struct CategoriesPageView: View {
     }
 }
 
-// MARK: - Payment Methods Page View (Placeholder)
+// MARK: - Payment Methods Page View
 
 struct PaymentMethodsPageView: View {
     @Binding var isMenuOpen: Bool
+    @Environment(\.modelContext) private var modelContext
+    
+    @Query(sort: \PaymentMethod.name) private var paymentMethods: [PaymentMethod]
+    
+    @State private var showPaymentMethodForm: Bool = false
+    @State private var selectedPaymentMethod: PaymentMethod? = nil
+    @State private var isLoading: Bool = false
+    @State private var errorMessage: String? = nil
     
     var body: some View {
         PageLayout(
@@ -68,11 +76,47 @@ struct PaymentMethodsPageView: View {
             isMenuOpen: $isMenuOpen,
             content: {
                 List {
-                    Text("Payment Methods page - Coming soon")
-                        .foregroundColor(.secondary)
+                    if paymentMethods.isEmpty {
+                        Text("No payment methods")
+                            .foregroundColor(.secondary)
+                    } else {
+                        ForEach(paymentMethods) { paymentMethod in
+                            NavigationLink(destination: PaymentMethodShowPageView(paymentMethod: paymentMethod)) {
+                                PaymentMethodRowView(paymentMethod: paymentMethod)
+                            }
+                        }
+                    }
                 }
-            }
+                .refreshable {
+                    await syncPaymentMethods()
+                }
+            },
+            addButton: AnyView(
+                Button(action: {
+                    showPaymentMethodForm = true
+                }) {
+                    Label("Add Payment Method", systemImage: "plus")
+                }
+            )
         )
+        .sheet(isPresented: $showPaymentMethodForm) {
+            PaymentMethodFormView(paymentMethod: nil)
+        }
+        .task {
+            await syncPaymentMethods()
+        }
+    }
+    
+    private func syncPaymentMethods() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        
+        do {
+            try await PaymentMethodService.shared.syncPaymentMethods(modelContext: modelContext)
+        } catch {
+            errorMessage = "Failed to sync payment methods: \(error.localizedDescription)"
+        }
     }
 }
 
