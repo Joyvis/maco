@@ -20,12 +20,13 @@ class PaymentMethodService {
         )
     }
     
-    func createPaymentMethod(name: String, type: PaymentMethodType, initialBalance: Double) async throws -> PaymentMethodResponse {
+    func createPaymentMethod(name: String, type: PaymentMethodType, initialBalance: Double, dueDay: Int? = nil) async throws -> PaymentMethodResponse {
         let request = PaymentMethodRequest(
             paymentMethod: PaymentMethodRequest.PaymentMethodAttributes(
                 name: name,
                 type: type.rawValue,
-                initialBalance: initialBalance
+                initialBalance: initialBalance,
+                dueDay: dueDay
             )
         )
         
@@ -36,11 +37,12 @@ class PaymentMethodService {
         )
     }
     
-    func updatePaymentMethod(id: String, name: String, type: PaymentMethodType) async throws -> PaymentMethodResponse {
+    func updatePaymentMethod(id: String, name: String, type: PaymentMethodType, dueDay: Int? = nil) async throws -> PaymentMethodResponse {
         let request = PaymentMethodUpdateRequest(
             paymentMethod: PaymentMethodUpdateRequest.PaymentMethodUpdateAttributes(
                 name: name,
-                type: type.rawValue
+                type: type.rawValue,
+                dueDay: dueDay
             )
         )
         
@@ -96,6 +98,7 @@ class PaymentMethodService {
                 if let initialBalance = response.initialBalance {
                     existingPaymentMethod.initialBalance = initialBalance
                 }
+                existingPaymentMethod.dueDay = response.dueDay
             } else {
                 // Create new payment method
                 let type = PaymentMethodType(rawValue: response.type ?? PaymentMethodType.debitAccount.rawValue) ?? .debitAccount
@@ -104,7 +107,8 @@ class PaymentMethodService {
                     id: response.id,
                     name: response.name,
                     type: type,
-                    initialBalance: initialBalance
+                    initialBalance: initialBalance,
+                    dueDay: response.dueDay
                 )
                 modelContext.insert(paymentMethod)
             }

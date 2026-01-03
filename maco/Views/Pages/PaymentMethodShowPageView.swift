@@ -136,6 +136,17 @@ struct PaymentMethodShowPageView: View {
                             Text(formatCurrency(paymentMethod.initialBalance))
                                 .font(.subheadline)
                         }
+                        
+                        if paymentMethod.paymentMethodType == .creditAccount, let dueDay = paymentMethod.dueDay {
+                            HStack {
+                                Text("Due Day")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text("\(dueDay)")
+                                    .font(.subheadline)
+                            }
+                        }
                     }
                     .padding(.vertical, 4)
                 }

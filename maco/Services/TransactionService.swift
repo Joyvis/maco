@@ -10,9 +10,9 @@ import SwiftData
 
 class TransactionService {
     static let shared = TransactionService()
-    
+
     private init() {}
-    
+
     func createTransaction(
         amount: String,
         type: TransactionType,
@@ -24,7 +24,7 @@ class TransactionService {
     ) async throws -> TransactionResponse {
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        
+
         let request = TransactionRequest(
             transaction: TransactionRequest.TransactionAttributes(
                 amount: amount,
@@ -37,7 +37,7 @@ class TransactionService {
                 paidAt: nil
             )
         )
-        
+
         return try await APIService.shared.post(
             endpoint: "/transactions",
             body: request,
@@ -103,14 +103,14 @@ class TransactionService {
     }
     
     // MARK: - Monthly Summary
-    
+
     /// Summary data returned from monthly_summary endpoint
     struct MonthlySummary {
         let transactions: [TransactionResponse]
         let total: String
         let pending: String
     }
-    
+
     /// Fetches monthly summary from the API
     /// - Parameter filters: Optional FilterSet to filter transactions (e.g., month/year, category, payment method)
     /// - Returns: MonthlySummary containing transactions, total, and pending
@@ -120,6 +120,7 @@ class TransactionService {
             filters: filters,
             responseType: TransactionsListResponse.self
         )
+
         return MonthlySummary(
             transactions: response.transactions,
             total: response.total,
@@ -257,7 +258,7 @@ class TransactionService {
                 }
             }
         }
-        
+
         // Clean up: Delete local transactions that have IDs but are not in the API response
         // Note: When filters are applied, only transactions matching the filter scope are cleaned up.
         // To clean up ALL stale data, sync without filters.
@@ -313,6 +314,7 @@ class TransactionService {
                 
                 // Update invoice items if present
                 if let items = response.invoiceItems, !items.isEmpty {
+                    print(response)
                     let invoiceItems = items.map { itemResponse in
                         // Check if invoice item already exists
                         if let existingItem = existingTransactionsById[itemResponse.id] {
