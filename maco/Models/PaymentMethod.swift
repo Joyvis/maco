@@ -28,12 +28,14 @@ final class PaymentMethod {
     var name: String
     var type: String
     var initialBalance: Double
+    var dueDay: Int?
     
-    init(id: String? = nil, name: String, type: PaymentMethodType, initialBalance: Double = 0.0) {
+    init(id: String? = nil, name: String, type: PaymentMethodType, initialBalance: Double = 0.0, dueDay: Int? = nil) {
         self.id = id
         self.name = name
         self.type = type.rawValue
         self.initialBalance = initialBalance
+        self.dueDay = dueDay
     }
     
     var paymentMethodType: PaymentMethodType {
@@ -59,11 +61,13 @@ struct PaymentMethodRequest: Codable {
         let name: String
         let type: String
         let initialBalance: Double
+        let dueDay: Int?
         
         enum CodingKeys: String, CodingKey {
             case name
             case type
             case initialBalance = "initial_balance"
+            case dueDay = "due_day"
         }
     }
 }
@@ -78,10 +82,12 @@ struct PaymentMethodUpdateRequest: Codable {
     struct PaymentMethodUpdateAttributes: Codable {
         let name: String
         let type: String
+        let dueDay: Int?
         
         enum CodingKeys: String, CodingKey {
             case name
             case type
+            case dueDay = "due_day"
         }
     }
 }
@@ -91,6 +97,7 @@ struct PaymentMethodResponse: Codable {
     let name: String
     let type: String?
     let initialBalance: Double?
+    let dueDay: Int?
     let createdAt: String?
     let updatedAt: String?
     
@@ -100,6 +107,7 @@ struct PaymentMethodResponse: Codable {
         case type
         case initialBalance = "initial_balance"
         case balance
+        case dueDay = "due_day"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
@@ -120,6 +128,8 @@ struct PaymentMethodResponse: Codable {
             initialBalance = nil
         }
         
+        dueDay = try container.decodeIfPresent(Int.self, forKey: .dueDay)
+        
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
         updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
     }
@@ -131,6 +141,7 @@ struct PaymentMethodResponse: Codable {
         try container.encode(name, forKey: .name)
         try container.encodeIfPresent(type, forKey: .type)
         try container.encodeIfPresent(initialBalance, forKey: .initialBalance)
+        try container.encodeIfPresent(dueDay, forKey: .dueDay)
         try container.encodeIfPresent(createdAt, forKey: .createdAt)
         try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
     }

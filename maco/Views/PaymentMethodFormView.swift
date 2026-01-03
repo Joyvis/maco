@@ -17,6 +17,7 @@ struct PaymentMethodFormView: View {
     @State private var name: String = ""
     @State private var selectedType: PaymentMethodType = .debitAccount
     @State private var initialBalance: String = "0.00"
+    @State private var dueDay: String = ""
     @State private var isLoading: Bool = false
     @State private var errorMessage: String? = nil
     
@@ -33,6 +34,17 @@ struct PaymentMethodFormView: View {
                     Picker("Type", selection: $selectedType) {
                         ForEach([PaymentMethodType.debitAccount, PaymentMethodType.creditAccount], id: \.self) { type in
                             Text(type.displayName).tag(type)
+                        }
+                    }
+                    
+                    if selectedType == .creditAccount {
+                        HStack {
+                            Text("Due Day")
+                            Spacer()
+                            TextField("1-28", text: $dueDay)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 120)
                         }
                     }
                     
@@ -82,12 +94,27 @@ struct PaymentMethodFormView: View {
     }
     
     private var isFormValid: Bool {
-        !name.isEmpty && !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let nameValid = !name.isEmpty && !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        
+        if selectedType == .creditAccount {
+            guard let dueDayInt = Int(dueDay.trimmingCharacters(in: .whitespacesAndNewlines)),
+                  dueDayInt >= 1 && dueDayInt <= 28 else {
+                return false
+            }
+            return nameValid
+        }
+        
+        return nameValid
     }
     
     private func prefillForm(with paymentMethod: PaymentMethod) {
         name = paymentMethod.name
         selectedType = paymentMethod.paymentMethodType
+        if let dueDayValue = paymentMethod.dueDay {
+            dueDay = String(dueDayValue)
+        } else {
+            dueDay = ""
+        }
         // initialBalance is not prefilled for edit mode (not shown in form)
     }
     
@@ -103,10 +130,12 @@ struct PaymentMethodFormView: View {
             
             if let existingPaymentMethod = paymentMethod, let paymentMethodId = existingPaymentMethod.id {
                 // Update existing payment method
+                let dueDayValue: Int? = selectedType == .creditAccount ? Int(dueDay.trimmingCharacters(in: .whitespacesAndNewlines)) : nil
                 response = try await PaymentMethodService.shared.updatePaymentMethod(
                     id: paymentMethodId,
                     name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-                    type: selectedType
+                    type: selectedType,
+                    dueDay: dueDayValue
                 )
                 
                 // Update SwiftData model
@@ -114,16 +143,19 @@ struct PaymentMethodFormView: View {
                 if let typeString = response.type, let type = PaymentMethodType(rawValue: typeString) {
                     existingPaymentMethod.paymentMethodType = type
                 }
+                existingPaymentMethod.dueDay = response.dueDay
                 // initialBalance is not updated in edit mode
                 
                 try modelContext.save()
             } else {
                 // Create new payment method
                 let initialBalanceValue = Double(initialBalance) ?? 0.0
+                let dueDayValue: Int? = selectedType == .creditAccount ? Int(dueDay.trimmingCharacters(in: .whitespacesAndNewlines)) : nil
                 response = try await PaymentMethodService.shared.createPaymentMethod(
                     name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                     type: selectedType,
-                    initialBalance: initialBalanceValue
+                    initialBalance: initialBalanceValue,
+                    dueDay: dueDayValue
                 )
                 
                 // Save to SwiftData
@@ -133,7 +165,8 @@ struct PaymentMethodFormView: View {
                     id: response.id,
                     name: response.name,
                     type: type,
-                    initialBalance: initialBalance
+                    initialBalance: initialBalance,
+                    dueDay: response.dueDay
                 )
                 modelContext.insert(newPaymentMethod)
                 try modelContext.save()
