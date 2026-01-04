@@ -50,7 +50,6 @@ extension Transaction {
     /// Returns formatted date for section headers ("Today", "Yesterday", or "Dec 18, 2025")
     var formattedCreatedDate: String {
         let calendar = Calendar.current
-        let now = Date()
         
         if calendar.isDateInToday(self.createdAt) {
             return "Today"

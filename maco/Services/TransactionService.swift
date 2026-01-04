@@ -80,22 +80,12 @@ class TransactionService {
     }
     
     func fetchTransactions(filters: FilterSet? = nil) async throws -> [TransactionResponse] {
-        // Try to decode as wrapper response first, fallback to array
-        do {
-            let wrapperResponse = try await APIService.shared.get(
-                endpoint: "/transactions",
-                filters: filters,
-                responseType: TransactionsListResponse.self
-            )
-            return wrapperResponse.transactions
-        } catch {
-            // Fallback to direct array response if wrapper decoding fails
-            return try await APIService.shared.get(
-                endpoint: "/transactions",
-                filters: filters,
-                responseType: [TransactionResponse].self
-            )
-        }
+        // The regular /transactions endpoint returns a direct array
+        return try await APIService.shared.get(
+            endpoint: "/transactions",
+            filters: filters,
+            responseType: [TransactionResponse].self
+        )
     }
     
     func deleteTransaction(id: String) async throws {
@@ -106,14 +96,15 @@ class TransactionService {
 
     /// Summary data returned from monthly_summary endpoint
     struct MonthlySummary {
-        let transactions: [TransactionResponse]
-        let total: String
-        let pending: String
+        let paidTotal: String
+        let paidTransactions: [TransactionResponse]
+        let notPaidTotal: String
+        let notPaidTransactions: [TransactionResponse]
     }
 
     /// Fetches monthly summary from the API
     /// - Parameter filters: Optional FilterSet to filter transactions (e.g., month/year, category, payment method)
-    /// - Returns: MonthlySummary containing transactions, total, and pending
+    /// - Returns: MonthlySummary containing paid and not_paid transactions with their respective totals
     func fetchMonthlySummary(filters: FilterSet? = nil) async throws -> MonthlySummary {
         let response = try await APIService.shared.get(
             endpoint: "/transactions/monthly_summary",
@@ -122,9 +113,10 @@ class TransactionService {
         )
 
         return MonthlySummary(
-            transactions: response.transactions,
-            total: response.total,
-            pending: response.pending
+            paidTotal: response.paidTotal,
+            paidTransactions: response.paidTransactions,
+            notPaidTotal: response.notPaidTotal,
+            notPaidTransactions: response.notPaidTransactions
         )
     }
     
@@ -229,10 +221,11 @@ class TransactionService {
     /// - Parameters:
     ///   - modelContext: SwiftData model context to insert/update transactions
     ///   - filters: Optional FilterSet to filter transactions (e.g., month/year, category, payment method)
-    /// - Returns: MonthlySummary containing total and pending values from the API
+    /// - Returns: MonthlySummary containing paid and not_paid transactions with their respective totals
     func syncTransactions(modelContext: ModelContext, filters: FilterSet? = nil) async throws -> MonthlySummary {
         let summary = try await fetchMonthlySummary(filters: filters)
-        let responses = summary.transactions
+        // Combine paid and not_paid transactions for syncing to SwiftData
+        let responses = summary.paidTransactions + summary.notPaidTransactions
         
         // Collect all transaction IDs from API response (including invoice items)
         var apiTransactionIds = Set<String>()

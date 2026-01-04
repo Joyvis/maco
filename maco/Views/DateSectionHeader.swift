@@ -12,7 +12,6 @@ struct DateSectionHeader: View {
     
     private var formattedDate: String {
         let calendar = Calendar.current
-        let now = Date()
         
         if calendar.isDateInToday(date) {
             return "Today"
