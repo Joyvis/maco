@@ -74,39 +74,44 @@ final class Transaction {
 // MARK: - API Models
 
 struct TransactionsListResponse: Codable {
-    let total: String
-    let transactions: [TransactionResponse]
-    let pending: String
+    let paidTotal: String
+    let paidTransactions: [TransactionResponse]
+    let notPaidTotal: String
+    let notPaidTransactions: [TransactionResponse]
     
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Handle total as either number or string
-        if let totalString = try? container.decode(String.self, forKey: .total) {
-            total = totalString
-        } else if let totalNumber = try? container.decode(Double.self, forKey: .total) {
+        // Handle paid_total as either number or string
+        if let paidTotalString = try? container.decode(String.self, forKey: .paidTotal) {
+            paidTotal = paidTotalString
+        } else if let paidTotalNumber = try? container.decode(Double.self, forKey: .paidTotal) {
             // Format number to string with 2 decimal places
-            total = String(format: "%.2f", totalNumber)
+            paidTotal = String(format: "%.2f", paidTotalNumber)
         } else {
-            total = "0.00"
+            paidTotal = "0.00"
         }
         
-        transactions = try container.decode([TransactionResponse].self, forKey: .transactions)
+        paidTransactions = try container.decode([TransactionResponse].self, forKey: .paidTransactions)
         
-        // Handle pending as either number or string, default to "0.00" if not present
-        if let pendingString = try? container.decodeIfPresent(String.self, forKey: .pending) {
-            pending = pendingString
-        } else if let pendingNumber = try? container.decodeIfPresent(Double.self, forKey: .pending) {
-            pending = String(format: "%.2f", pendingNumber)
+        // Handle not_paid_total as either number or string
+        if let notPaidTotalString = try? container.decode(String.self, forKey: .notPaidTotal) {
+            notPaidTotal = notPaidTotalString
+        } else if let notPaidTotalNumber = try? container.decode(Double.self, forKey: .notPaidTotal) {
+            // Format number to string with 2 decimal places
+            notPaidTotal = String(format: "%.2f", notPaidTotalNumber)
         } else {
-            pending = "0.00"
+            notPaidTotal = "0.00"
         }
+        
+        notPaidTransactions = try container.decode([TransactionResponse].self, forKey: .notPaidTransactions)
     }
     
     enum CodingKeys: String, CodingKey {
-        case total
-        case transactions
-        case pending
+        case paidTotal = "paid_total"
+        case paidTransactions = "paid_transactions"
+        case notPaidTotal = "not_paid_total"
+        case notPaidTransactions = "not_paid_transactions"
     }
 }
 

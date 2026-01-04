@@ -259,8 +259,8 @@ struct PaymentMethodShowPageView: View {
                 filters: filterSet
             )
             // Update state with API-provided totals
-            apiTotal = summary.total
-            apiPending = summary.pending
+            apiTotal = summary.paidTotal
+            apiPending = summary.notPaidTotal
         } catch {
             errorMessage = "Failed to sync transactions: \(error.localizedDescription)"
         }

@@ -24,6 +24,8 @@ struct TransactionsPageView: View {
     @State private var apiPending: String = "0.00"
     @State private var showMarkAsPaidView: Bool = false
     @State private var transactionToMarkAsPaid: Transaction? = nil
+    @State private var paidTransactionIds: [String] = []
+    @State private var notPaidTransactionIds: [String] = []
     
     // Filter state - using StateObject to observe @Published properties
     @StateObject private var filters: FilterSet = {
@@ -34,45 +36,27 @@ struct TransactionsPageView: View {
         return FilterSet(monthYearFilter: MonthYearFilter(month: month, year: year))
     }()
 
-    // Filter out invoice items and filter by selected month/year
-    private var topLevelTransactions: [Transaction] {
-        let calendar = Calendar.current
-        let filtered = transactions.filter { transaction in
+    // Get not_paid transactions from SwiftData based on API response IDs
+    private var unpaidTransactions: [Transaction] {
+        let unpaid = transactions.filter { transaction in
             // Filter out invoice items
             guard transaction.parentInvoice == nil else { return false }
-            
-            // If month/year filter is set, filter by dueDate for unpaid, paidAt for paid
-            if let monthYearFilter = filters.monthYearFilter {
-                if transaction.isPaid, let paidAt = transaction.paidAt {
-                    let transactionMonth = calendar.component(.month, from: paidAt)
-                    let transactionYear = calendar.component(.year, from: paidAt)
-                    return transactionMonth == monthYearFilter.month && transactionYear == monthYearFilter.year
-                } else {
-                    let transactionMonth = calendar.component(.month, from: transaction.dueDate)
-                    let transactionYear = calendar.component(.year, from: transaction.dueDate)
-                    return transactionMonth == monthYearFilter.month && transactionYear == monthYearFilter.year
-                }
-            }
-            
-            // If no filter, show all
-            return true
-        }
-        return filtered
-    }
-    
-    // Unpaid transactions (pending or overdue) - sorted by dueDate ascending
-    private var unpaidTransactions: [Transaction] {
-        let unpaid = topLevelTransactions.filter { transaction in
-            !transaction.isPaid
+            // Only include transactions that are in the not_paid list from API
+            guard let id = transaction.id else { return false }
+            return notPaidTransactionIds.contains(id)
         }
         return unpaid.sorted { $0.dueDate < $1.dueDate }
     }
     
-    // Paid transactions grouped by paidAt date
+    // Get paid transactions from SwiftData based on API response IDs, grouped by paidAt date
     private var paidTransactionsByDate: [Date: [Transaction]] {
         let calendar = Calendar.current
-        let paid = topLevelTransactions.filter { transaction in
-            transaction.isPaid && transaction.paidAt != nil
+        let paid = transactions.filter { transaction in
+            // Filter out invoice items
+            guard transaction.parentInvoice == nil else { return false }
+            // Only include transactions that are in the paid list from API
+            guard let id = transaction.id else { return false }
+            return paidTransactionIds.contains(id) && transaction.paidAt != nil
         }
         return Dictionary(grouping: paid) { transaction in
             calendar.startOfDay(for: transaction.paidAt!)
@@ -360,8 +344,11 @@ struct TransactionsPageView: View {
                 filters: activeFilters
             )
             // Update state with API-provided totals
-            apiTotal = summary.total
-            apiPending = summary.pending
+            apiTotal = summary.paidTotal
+            apiPending = summary.notPaidTotal
+            // Store transaction IDs for filtering display
+            paidTransactionIds = summary.paidTransactions.map { $0.id }
+            notPaidTransactionIds = summary.notPaidTransactions.map { $0.id }
         } catch {
             errorMessage = "Failed to sync transactions: \(error.localizedDescription)"
         }

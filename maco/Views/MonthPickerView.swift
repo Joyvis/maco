@@ -22,8 +22,6 @@ struct MonthPickerView: View {
     
     private var availableMonths: [(month: Int, year: Int, displayText: String)] {
         let now = Date()
-        let currentMonth = calendar.component(.month, from: now)
-        let currentYear = calendar.component(.year, from: now)
         
         var months: [(month: Int, year: Int, displayText: String)] = []
         

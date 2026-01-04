@@ -21,9 +21,11 @@ struct MonthYearFilter: QueryFilter {
     let year: Int
     
     func toQueryParameters() -> [String: String] {
+        // Format month as two-digit zero-padded string (e.g., "01" instead of "1")
+        let monthString = String(format: "%02d", month)
         return [
-            "month": String(month),
-            "year": String(year)
+            "q[paid_at_month_eq]": monthString,
+            "q[paid_at_year_eq]": String(year)
         ]
     }
 }
@@ -35,7 +37,7 @@ struct CategoryFilter: QueryFilter {
     
     func toQueryParameters() -> [String: String] {
         return [
-            "category_id": categoryId
+            "q[category_id_eq]": categoryId
         ]
     }
 }
@@ -47,7 +49,7 @@ struct PaymentMethodFilter: QueryFilter {
     
     func toQueryParameters() -> [String: String] {
         return [
-            "payment_method_id": paymentMethodId
+            "q[payment_method_id_eq]": paymentMethodId
         ]
     }
 }
